@@ -77,15 +77,47 @@ async function main() {
 
   const boardId = boards[0].id
 
-  // 3. Call get_board_context
-  console.log('\n📖 Calling get_board_context...')
+  // 3. Call list_board_context_files
+  console.log('\n📂 Calling list_board_context_files...')
+  const listFilesResult: any = await client.callTool({
+    name: 'list_board_context_files',
+    arguments: { boardId },
+  })
+  const filesData = JSON.parse(listFilesResult.content[0].text)
+  console.log(`✅ Found ${filesData.files.length} context file(s):`)
+  filesData.files.forEach((f: any) => console.log(`   - ${f.fileName} (${f.title})`))
+
+  // 3b. Call get_board_context for all files
+  console.log('\n📖 Calling get_board_context (all files)...')
   const contextResult: any = await client.callTool({
     name: 'get_board_context',
     arguments: { boardId },
   })
   const contextText = contextResult.content[0].text
-  console.log('✅ Successfully retrieved living context! Snippet:')
-  console.log(contextText.slice(0, 200) + '...\n')
+  console.log('✅ Successfully retrieved living context bundle! Snippet:')
+  console.log(contextText.slice(0, 220) + '...\n')
+
+  // 3c. Call get_board_context for single file
+  console.log('📄 Calling get_board_context for "guidelines.md"...')
+  const singleFileResult: any = await client.callTool({
+    name: 'get_board_context',
+    arguments: { boardId, fileName: 'guidelines.md' },
+  })
+  console.log('✅ Retrieved single file snippet:')
+  console.log(singleFileResult.content[0].text.slice(0, 150) + '...\n')
+
+  // 3d. Call update_board_context to upsert a new file
+  console.log('💾 Calling update_board_context to create "api-endpoints.json"...')
+  const upsertFileResult: any = await client.callTool({
+    name: 'update_board_context',
+    arguments: {
+      boardId,
+      fileName: 'api-endpoints.json',
+      title: 'REST API Endpoints Specification',
+      content: JSON.stringify({ version: 'v1', endpoints: ['/api/boards', '/api/cards'] }, null, 2),
+    },
+  })
+  console.log('✅ ' + upsertFileResult.content[0].text)
 
   // 4. Call create_card
   console.log('📝 Calling create_card...')

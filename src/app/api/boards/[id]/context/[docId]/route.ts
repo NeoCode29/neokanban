@@ -49,20 +49,21 @@ export async function PUT(
     const { title, fileName, content, order } = await req.json()
 
     let cleanFileName: string | undefined = undefined
-    if (fileName && fileName.trim()) {
-      cleanFileName = fileName.trim().toLowerCase().replace(/[^a-z0-9_.-]/g, '-')
-      if (cleanFileName !== existing.fileName) {
+    if (fileName && typeof fileName === 'string' && fileName.trim()) {
+      const sanitized = fileName.trim().toLowerCase().replace(/[^a-z0-9_.-]/g, '-')
+      cleanFileName = sanitized
+      if (sanitized !== existing.fileName) {
         const conflict = await prisma.contextDocument.findUnique({
           where: {
             boardId_fileName: {
               boardId: id,
-              fileName: cleanFileName,
+              fileName: sanitized,
             },
           },
         })
         if (conflict) {
           return NextResponse.json(
-            { error: `File "${cleanFileName}" already exists in this project.` },
+            { error: `File "${sanitized}" already exists in this project.` },
             { status: 400 }
           )
         }

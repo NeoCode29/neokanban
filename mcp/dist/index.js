@@ -77,57 +77,146 @@ server.tool('list_boards', 'Lists all project boards accessible by the authentic
         content: [{ type: 'text', text: JSON.stringify(result, null, 2) }],
     };
 });
-// 2. Tool: get_board_context
-server.tool('get_board_context', 'Retrieves the living project context, coding guidelines, tech stack specifications, conventions, and message standards for a specific board. CRITICAL for AI agents to align with team standards before writing code or tasks.', {
+// 2. Tool: list_board_context_files
+server.tool('list_board_context_files', 'Lists all living context files/documents available in a board (e.g. guidelines.md, tech-stack.md, architecture.md).', {
     boardId: zod_1.z.string().describe('The ID of the board'),
     token: zod_1.z.string().optional().describe('Optional Personal Access Token override'),
 }, async ({ boardId, token }) => {
     const user = await authenticateUser(token);
     const board = await prisma.board.findUnique({
         where: { id: boardId },
-        include: { projectContext: true },
+        include: {
+            contextDocuments: {
+                orderBy: [{ order: 'asc' }, { createdAt: 'asc' }],
+                select: { id: true, title: true, fileName: true, order: true, updatedAt: true },
+            },
+        },
     });
     if (!board || board.ownerId !== user.id) {
         throw new Error(`Board with ID ${boardId} not found or unauthorized.`);
     }
-    const context = board.projectContext || {
+    return {
+        content: [
+            {
+                type: 'text',
+                text: JSON.stringify({
+                    boardId: board.id,
+                    boardTitle: board.title,
+                    files: board.contextDocuments,
+                }, null, 2),
+            },
+        ],
+    };
+});
+// 3. Tool: get_board_context
+server.tool('get_board_context', 'Retrieves the living project context files for a board. Can fetch a specific file by fileName or retrieve the entire context bundle.', {
+    boardId: zod_1.z.string().describe('The ID of the board'),
+    fileName: zod_1.z.string().optional().describe('Optional file name, e.g. "guidelines.md" or "architecture.md"'),
+    token: zod_1.z.string().optional().describe('Optional Personal Access Token override'),
+}, async ({ boardId, fileName, token }) => {
+    const user = await authenticateUser(token);
+    const board = await prisma.board.findUnique({
+        where: { id: boardId },
+        include: {
+            contextDocuments: {
+                orderBy: [{ order: 'asc' }, { createdAt: 'asc' }],
+            },
+            projectContext: true,
+        },
+    });
+    if (!board || board.ownerId !== user.id) {
+        throw new Error(`Board with ID ${boardId} not found or unauthorized.`);
+    }
+    // Specific file requested
+    if (fileName && fileName.trim()) {
+        const cleanName = fileName.trim().toLowerCase();
+        const doc = board.contextDocuments.find((d) => d.fileName.toLowerCase() === cleanName || d.title.toLowerCase() === cleanName);
+        if (!doc) {
+            throw new Error(`Context file "${fileName}" not found in board "${board.title}". Available files: ${board.contextDocuments.map((d) => d.fileName).join(', ')}`);
+        }
+        return {
+            content: [
+                {
+                    type: 'text',
+                    text: `# ${doc.title} (\`${doc.fileName}\`)\n\n${doc.content}`,
+                },
+            ],
+        };
+    }
+    // Return complete context bundle
+    if (board.contextDocuments.length > 0) {
+        const fileListHeader = board.contextDocuments
+            .map((d) => `- \`${d.fileName}\`: ${d.title}`)
+            .join('\n');
+        const fullFilesContent = board.contextDocuments
+            .map((d) => `## 📄 ${d.title} (\`${d.fileName}\`)\n\n${d.content}\n\n---`)
+            .join('\n\n');
+        const bundle = `# Living Project Context for: "${board.title}"\n\n### Available Context Files:\n${fileListHeader}\n\n---\n\n${fullFilesContent}`;
+        return {
+            content: [{ type: 'text', text: bundle }],
+        };
+    }
+    const legacy = board.projectContext || {
         guidelinesMarkdown: 'No guidelines defined.',
         techStackMarkdown: 'No tech stack specified.',
         conventionsMarkdown: 'No conventions specified.',
         messagingStandards: 'No message standards specified.',
     };
-    const formattedContext = `# Living Project Context for: "${board.title}"
-
-## 1. Core Guidelines & Standards
-${context.guidelinesMarkdown}
-
-## 2. Tech Stack Specifications
-${context.techStackMarkdown}
-
-## 3. Team & Git Conventions
-${context.conventionsMarkdown}
-
-## 4. Communication & Messaging Standards
-${context.messagingStandards}
-`;
+    const fallbackContext = `# Living Project Context for: "${board.title}"\n\n## 1. Core Guidelines\n${legacy.guidelinesMarkdown}\n\n## 2. Tech Stack\n${legacy.techStackMarkdown}\n\n## 3. Conventions\n${legacy.conventionsMarkdown}\n\n## 4. Message Standards\n${legacy.messagingStandards}`;
     return {
-        content: [{ type: 'text', text: formattedContext }],
+        content: [{ type: 'text', text: fallbackContext }],
     };
 });
-// 3. Tool: update_board_context
-server.tool('update_board_context', 'Updates the living project context for a board (guidelines, tech stack, conventions, or messaging standards).', {
+// 4. Tool: update_board_context
+server.tool('update_board_context', 'Creates or updates a living project context file on a board (e.g. fileName: "guidelines.md", content: "...").', {
     boardId: zod_1.z.string().describe('The ID of the board'),
-    guidelinesMarkdown: zod_1.z.string().optional().describe('Updated coding guidelines markdown'),
-    techStackMarkdown: zod_1.z.string().optional().describe('Updated tech stack markdown'),
-    conventionsMarkdown: zod_1.z.string().optional().describe('Updated conventions markdown'),
-    messagingStandards: zod_1.z.string().optional().describe('Updated messaging standards markdown'),
+    fileName: zod_1.z.string().optional().describe('File name to create or update (e.g. "guidelines.md", "architecture.md", "api-spec.json")'),
+    content: zod_1.z.string().optional().describe('The updated content for the file'),
+    title: zod_1.z.string().optional().describe('Optional human-readable title for the file'),
+    guidelinesMarkdown: zod_1.z.string().optional().describe('Legacy: Updated coding guidelines markdown'),
+    techStackMarkdown: zod_1.z.string().optional().describe('Legacy: Updated tech stack markdown'),
+    conventionsMarkdown: zod_1.z.string().optional().describe('Legacy: Updated conventions markdown'),
+    messagingStandards: zod_1.z.string().optional().describe('Legacy: Updated messaging standards markdown'),
     token: zod_1.z.string().optional().describe('Optional Personal Access Token override'),
-}, async ({ boardId, guidelinesMarkdown, techStackMarkdown, conventionsMarkdown, messagingStandards, token, }) => {
+}, async ({ boardId, fileName, content, title, guidelinesMarkdown, techStackMarkdown, conventionsMarkdown, messagingStandards, token, }) => {
     const user = await authenticateUser(token);
     const board = await prisma.board.findUnique({ where: { id: boardId } });
     if (!board || board.ownerId !== user.id) {
         throw new Error(`Board with ID ${boardId} not found or unauthorized.`);
     }
+    // Modern multi-file update
+    if (fileName && fileName.trim()) {
+        const cleanFileName = fileName.trim().toLowerCase().replace(/[^a-z0-9_.-]/g, '-');
+        const fileContent = content || '';
+        const fileTitle = title?.trim() || cleanFileName;
+        const updatedDoc = await prisma.contextDocument.upsert({
+            where: {
+                boardId_fileName: {
+                    boardId,
+                    fileName: cleanFileName,
+                },
+            },
+            update: {
+                content: fileContent,
+                ...(title ? { title: fileTitle } : {}),
+            },
+            create: {
+                boardId,
+                fileName: cleanFileName,
+                title: fileTitle,
+                content: fileContent,
+            },
+        });
+        return {
+            content: [
+                {
+                    type: 'text',
+                    text: `Context file "${updatedDoc.fileName}" (${updatedDoc.title}) on board "${board.title}" has been successfully saved at ${updatedDoc.updatedAt.toISOString()}.`,
+                },
+            ],
+        };
+    }
+    // Legacy updates
     const updated = await prisma.projectContext.upsert({
         where: { boardId },
         update: {
