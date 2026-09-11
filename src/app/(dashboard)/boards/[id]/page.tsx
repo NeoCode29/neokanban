@@ -18,7 +18,7 @@ import KanbanBoard from '@/components/kanban/KanbanBoard'
 import CardDetailModal from '@/components/kanban/CardDetailModal'
 import { CardData } from '@/components/kanban/KanbanCard'
 import { ColumnData } from '@/components/kanban/KanbanColumn'
-import ProjectContextView, { ProjectContextData } from '@/components/context/ProjectContextView'
+import ProjectContextView, { ContextDocument } from '@/components/context/ProjectContextView'
 
 interface BoardDetail {
   id: string
@@ -26,7 +26,8 @@ interface BoardDetail {
   description: string | null
   isFavorite: boolean
   columns: ColumnData[]
-  projectContext: ProjectContextData | null
+  projectContext?: any
+  contextDocuments?: ContextDocument[]
 }
 
 export default function BoardPage({ params }: { params: Promise<{ id: string }> }) {
@@ -344,7 +345,7 @@ export default function BoardPage({ params }: { params: Promise<{ id: string }> 
         <ProjectContextView
           boardId={board.id}
           boardTitle={board.title}
-          initialContext={board.projectContext}
+          initialDocuments={board.contextDocuments}
         />
       )}
 

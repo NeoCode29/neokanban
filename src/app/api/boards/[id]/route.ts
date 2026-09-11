@@ -33,6 +33,9 @@ export async function GET(
         orderBy: { order: 'asc' },
       },
       projectContext: true,
+      contextDocuments: {
+        orderBy: { order: 'asc' },
+      },
     },
   })
 
