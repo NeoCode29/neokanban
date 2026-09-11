@@ -67,13 +67,13 @@ export default function KanbanCard({ card, onClick }: KanbanCardProps) {
       ref={setNodeRef}
       style={style}
       onClick={() => onClick(card)}
-      className={`group relative bg-white hover:border-neutral-300 border border-neutral-200/90 rounded-xl p-4 shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition-all cursor-pointer select-none ${
+      className={`group relative bg-white hover:border-neutral-300/90 border border-neutral-200/90 rounded-xl p-3.5 shadow-[0_1px_2px_rgba(0,0,0,0.03)] hover:shadow-[0_2px_6px_rgba(0,0,0,0.05)] transition-all cursor-pointer select-none ${
         isDragging ? 'opacity-30 border-neutral-400 ring-2 ring-neutral-200' : ''
       }`}
     >
       {/* Top Title & Drag Indicator */}
-      <div className="flex items-start justify-between gap-2 mb-1">
-        <h4 className="text-xs sm:text-sm font-semibold text-neutral-900 group-hover:text-neutral-950 leading-snug">
+      <div className="flex items-start justify-between gap-2 mb-0.5">
+        <h4 className="text-[13px] font-semibold text-neutral-800 group-hover:text-neutral-950 leading-snug">
           {card.title}
         </h4>
 
@@ -88,7 +88,7 @@ export default function KanbanCard({ card, onClick }: KanbanCardProps) {
       </div>
 
       {/* Subtitle / Category / Tags */}
-      <p className="text-xs text-neutral-500 mb-3 truncate">
+      <p className="text-[11px] text-neutral-500 mb-3 truncate font-normal">
         {card.tags && card.tags.length > 0
           ? card.tags.map((t) => `#${t}`).join(' ')
           : card.description
@@ -97,9 +97,9 @@ export default function KanbanCard({ card, onClick }: KanbanCardProps) {
       </p>
 
       {/* Footer Row: Date on left, indicators/avatar on right */}
-      <div className="flex items-center justify-between text-[11px] text-neutral-400 pt-2 border-t border-neutral-100">
-        <div className="flex items-center gap-2 text-neutral-500 font-medium">
-          <Calendar className="w-3.5 h-3.5 text-neutral-400" />
+      <div className="flex items-center justify-between text-[11px] text-neutral-500 pt-2.5 border-t border-neutral-100">
+        <div className="flex items-center gap-1.5 font-normal text-neutral-500">
+          <Calendar className="w-3 h-3 text-neutral-400" />
           <span>{formattedDate}</span>
         </div>
 
@@ -128,8 +128,8 @@ export default function KanbanCard({ card, onClick }: KanbanCardProps) {
           )}
 
           {/* Minimal Avatar / AI badge */}
-          <div className="w-5 h-5 rounded-full bg-neutral-100 border border-neutral-200 flex items-center justify-center text-neutral-600">
-            <User className="w-3 h-3" />
+          <div className="w-5 h-5 rounded-full bg-neutral-100 border border-neutral-200/80 flex items-center justify-center text-neutral-500">
+            <User className="w-2.5 h-2.5" />
           </div>
         </div>
       </div>

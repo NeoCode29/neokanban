@@ -53,31 +53,42 @@ export default function KanbanColumn({
     }
   }
 
+  const getStatusColor = (title: string, customColor?: string | null) => {
+    if (customColor) return customColor
+    const t = title.toLowerCase()
+    if (t.includes('backlog') || t.includes('draft')) return '#64748b'
+    if (t.includes('to do') || t.includes('todo') || t.includes('awaiting')) return '#f59e0b'
+    if (t.includes('progress') || t.includes('doing')) return '#3b82f6'
+    if (t.includes('review')) return '#8b5cf6'
+    if (t.includes('done') || t.includes('signed') || t.includes('complete')) return '#10b981'
+    return '#94a3b8'
+  }
+
   return (
     <div
       ref={setNodeRef}
-      className={`w-72 sm:w-80 shrink-0 bg-[#f4f5f7] rounded-2xl p-3 flex flex-col max-h-[calc(100vh-13rem)] transition-all ${
-        isOver ? 'ring-2 ring-neutral-300 bg-neutral-200/60' : ''
+      className={`w-72 sm:w-80 shrink-0 bg-[#f4f5f7] rounded-2xl p-3 flex flex-col max-h-[calc(100vh-12rem)] transition-all ${
+        isOver ? 'ring-2 ring-neutral-300/80 bg-[#edf0f4]' : ''
       }`}
     >
       {/* Column Header: Status Dot & Title */}
-      <div className="px-1 py-1.5 mb-2 flex items-center justify-between">
+      <div className="px-1.5 py-1 mb-2 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <span
             className="w-2 h-2 rounded-full shrink-0"
-            style={{ backgroundColor: column.colorCode || '#64748b' }}
+            style={{ backgroundColor: getStatusColor(column.title, column.colorCode) }}
           />
-          <h3 className="text-xs font-semibold text-neutral-800 tracking-tight">
+          <h3 className="text-[13px] font-semibold text-neutral-800 tracking-tight">
             {column.title}
           </h3>
-          <span className="text-[11px] font-medium text-neutral-400">
+          <span className="text-[11px] font-normal text-neutral-400">
             {column.cards.length}
           </span>
         </div>
 
         <button
           onClick={() => setIsAdding(true)}
-          className="p-1 text-neutral-400 hover:text-neutral-700 hover:bg-neutral-200/80 rounded-md transition-colors"
+          className="p-1 text-neutral-400 hover:text-neutral-700 hover:bg-neutral-200/60 rounded-md transition-colors"
           title="Add card"
         >
           <Plus className="w-3.5 h-3.5" />
@@ -85,7 +96,7 @@ export default function KanbanColumn({
       </div>
 
       {/* Cards List */}
-      <div className="flex-1 space-y-3 overflow-y-auto min-h-[100px] px-0.5">
+      <div className="flex-1 space-y-3 overflow-y-auto min-h-[80px] px-0.5">
         <SortableContext items={cardIds} strategy={verticalListSortingStrategy}>
           {column.cards.map((card) => (
             <KanbanCard key={card.id} card={card} onClick={onCardClick} />
@@ -93,9 +104,7 @@ export default function KanbanColumn({
         </SortableContext>
 
         {column.cards.length === 0 && !isAdding && (
-          <div className="h-24 flex items-center justify-center border border-dashed border-neutral-300/80 rounded-xl text-xs text-neutral-400">
-            No tasks in this list
-          </div>
+          <div className="h-16 flex items-center justify-center rounded-xl transition-all" />
         )}
 
         {/* Quick Add Form */}

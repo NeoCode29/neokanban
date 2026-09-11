@@ -134,6 +134,10 @@ export default function BoardPage({ params }: { params: Promise<{ id: string }> 
     }
   }
 
+  const [searchQuery, setSearchQuery] = useState('')
+  const [showSearchInput, setShowSearchInput] = useState(false)
+  const [showMenu, setShowMenu] = useState(false)
+
   if (loading) {
     return (
       <div className="py-24 flex flex-col items-center justify-center text-neutral-400 gap-2">
@@ -145,23 +149,33 @@ export default function BoardPage({ params }: { params: Promise<{ id: string }> 
 
   if (!board) return null
 
-  // Filter columns if a specific status is chosen
-  const displayedColumns =
-    activeFilter === 'all'
-      ? board.columns
-      : board.columns.filter((c) => c.title.toLowerCase() === activeFilter.toLowerCase())
+  // Filter columns and cards
+  const displayedColumns = board.columns
+    .filter((c) => (activeFilter === 'all' ? true : c.title.toLowerCase() === activeFilter.toLowerCase()))
+    .map((col) => ({
+      ...col,
+      cards: searchQuery.trim()
+        ? col.cards.filter(
+            (c) =>
+              c.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+              c.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+              c.tags.some((t) => t.toLowerCase().includes(searchQuery.toLowerCase()))
+          )
+        : col.cards,
+    }))
 
   return (
     <div className="space-y-6">
       {/* 1. Top Title Row with Black Action Button */}
       <div className="flex items-center justify-between gap-4">
-        <div className="flex items-center gap-2.5">
+        <div className="flex items-center gap-3">
           <h1 className="text-2xl font-bold text-neutral-900 tracking-tight">
             {board.title}
           </h1>
+          
           <button
             onClick={toggleFavorite}
-            className={`p-1 rounded transition-colors ${
+            className={`p-1 rounded-md transition-colors ${
               board.isFavorite
                 ? 'text-amber-500 hover:text-amber-600'
                 : 'text-neutral-300 hover:text-neutral-500'
@@ -170,40 +184,58 @@ export default function BoardPage({ params }: { params: Promise<{ id: string }> 
           >
             <Star className="w-4 h-4 fill-current" />
           </button>
+
+          {/* Board Options Menu */}
+          <div className="relative">
+            <button
+              onClick={() => setShowMenu(!showMenu)}
+              className="p-1 text-neutral-400 hover:text-neutral-700 hover:bg-neutral-100 rounded-md transition-colors"
+              title="Board options"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+            </button>
+            {showMenu && (
+              <div className="absolute left-0 mt-1 w-36 bg-white border border-neutral-200 rounded-xl shadow-lg p-1 z-30 animate-in fade-in">
+                <button
+                  onClick={() => {
+                    setShowMenu(false)
+                    handleDeleteBoard()
+                  }}
+                  className="w-full text-left px-2.5 py-1.5 text-xs text-red-600 hover:bg-red-50 rounded-lg flex items-center gap-1.5 transition-colors"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span>Delete board</span>
+                </button>
+              </div>
+            )}
+          </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        {/* Right: Only Primary Black Action Button */}
+        <div>
           <button
             onClick={handleQuickAddTask}
-            className="bg-neutral-900 hover:bg-neutral-800 text-white px-3.5 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 shadow-sm transition-colors"
+            className="bg-neutral-900 hover:bg-neutral-800 text-white px-3.5 py-2 rounded-xl text-xs font-semibold flex items-center gap-1.5 shadow-sm transition-colors"
           >
             <Plus className="w-4 h-4" />
             <span>New task</span>
-          </button>
-
-          <button
-            onClick={handleDeleteBoard}
-            className="p-1.5 text-neutral-400 hover:text-red-600 hover:bg-neutral-100 rounded-lg transition-colors"
-            title="Delete Board"
-          >
-            <Trash2 className="w-4 h-4" />
           </button>
         </div>
       </div>
 
       {/* 2. Controls & Filter Bar (Pill tabs on left, actions on right) */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-1">
         {/* Left: Rounded Pill Filter Bar */}
-        <div className="flex items-center gap-1 p-1 bg-neutral-100/90 rounded-xl w-fit">
+        <div className="flex items-center gap-1 p-1 bg-[#eeeff2] rounded-xl w-fit border border-neutral-200/50">
           <button
             onClick={() => {
               setActiveTab('board')
               setActiveFilter('all')
             }}
-            className={`px-3 py-1 rounded-lg text-xs font-medium transition-all ${
+            className={`px-3 py-1 rounded-lg text-xs transition-all ${
               activeTab === 'board' && activeFilter === 'all'
-                ? 'bg-white text-neutral-900 shadow-xs font-semibold'
-                : 'text-neutral-600 hover:text-neutral-900'
+                ? 'bg-white text-neutral-900 shadow-sm border border-neutral-200/60 font-semibold'
+                : 'text-neutral-500 hover:text-neutral-800 font-medium'
             }`}
           >
             All
@@ -216,10 +248,10 @@ export default function BoardPage({ params }: { params: Promise<{ id: string }> 
                 setActiveTab('board')
                 setActiveFilter(col.title)
               }}
-              className={`px-3 py-1 rounded-lg text-xs font-medium transition-all ${
+              className={`px-3 py-1 rounded-lg text-xs transition-all ${
                 activeTab === 'board' && activeFilter === col.title
-                  ? 'bg-white text-neutral-900 shadow-xs font-semibold'
-                  : 'text-neutral-600 hover:text-neutral-900'
+                  ? 'bg-white text-neutral-900 shadow-sm border border-neutral-200/60 font-semibold'
+                  : 'text-neutral-500 hover:text-neutral-800 font-medium'
               }`}
             >
               {col.title}
@@ -229,10 +261,10 @@ export default function BoardPage({ params }: { params: Promise<{ id: string }> 
           {/* Project Context Tab in the pill control */}
           <button
             onClick={() => setActiveTab('context')}
-            className={`px-3 py-1 rounded-lg text-xs font-medium flex items-center gap-1.5 transition-all ${
+            className={`px-3 py-1 rounded-lg text-xs flex items-center gap-1.5 transition-all ${
               activeTab === 'context'
-                ? 'bg-white text-neutral-900 shadow-xs font-semibold'
-                : 'text-neutral-600 hover:text-neutral-900'
+                ? 'bg-white text-neutral-900 shadow-sm border border-neutral-200/60 font-semibold'
+                : 'text-neutral-500 hover:text-neutral-800 font-medium'
             }`}
           >
             <BookOpen className="w-3.5 h-3.5 text-neutral-500" />
@@ -243,12 +275,36 @@ export default function BoardPage({ params }: { params: Promise<{ id: string }> 
 
         {/* Right: Quick actions (Search, Sort dropdown, Layout icons) */}
         <div className="flex items-center gap-2 self-end sm:self-auto">
-          <button
-            className="p-1.5 text-neutral-500 hover:text-neutral-800 hover:bg-neutral-100 rounded-lg transition-colors border border-neutral-200/80 bg-white"
-            title="Filter search"
-          >
-            <Search className="w-3.5 h-3.5" />
-          </button>
+          {showSearchInput ? (
+            <div className="flex items-center gap-1 bg-white border border-neutral-200 rounded-lg px-2.5 py-1 shadow-xs">
+              <Search className="w-3.5 h-3.5 text-neutral-400" />
+              <input
+                autoFocus
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Filter tasks..."
+                className="text-xs text-neutral-800 placeholder-neutral-400 focus:outline-none w-28 sm:w-36"
+              />
+              <button
+                onClick={() => {
+                  setSearchQuery('')
+                  setShowSearchInput(false)
+                }}
+                className="text-[10px] text-neutral-400 hover:text-neutral-700"
+              >
+                ✕
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={() => setShowSearchInput(true)}
+              className="p-1.5 text-neutral-500 hover:text-neutral-800 hover:bg-neutral-100 rounded-lg transition-colors border border-neutral-200/80 bg-white shadow-xs"
+              title="Filter search"
+            >
+              <Search className="w-3.5 h-3.5" />
+            </button>
+          )}
 
           <div className="flex items-center gap-1 px-2.5 py-1.5 bg-white border border-neutral-200/80 rounded-lg text-xs font-medium text-neutral-700 shadow-xs cursor-pointer hover:bg-neutral-50">
             <span>Recently updated</span>

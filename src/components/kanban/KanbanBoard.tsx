@@ -32,6 +32,12 @@ export default function KanbanBoard({
   onRefresh,
 }: KanbanBoardProps) {
   const [columns, setColumns] = useState<ColumnData[]>(initialColumns)
+
+  // Re-sync columns when parent filters or reloads columns
+  useEffect(() => {
+    setColumns(initialColumns)
+  }, [initialColumns])
+
   const [activeCard, setActiveCard] = useState<CardData | null>(null)
   const [isAddingColumn, setIsAddingColumn] = useState(false)
   const [newColumnTitle, setNewColumnTitle] = useState('')
