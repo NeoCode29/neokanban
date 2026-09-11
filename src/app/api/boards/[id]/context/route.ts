@@ -15,17 +15,24 @@ export async function GET(
 
   const board = await prisma.board.findUnique({
     where: { id },
-    include: { projectContext: true },
+    include: {
+      contextDocuments: {
+        orderBy: [{ order: 'asc' }, { createdAt: 'asc' }],
+      },
+    },
   })
 
   if (!board || board.ownerId !== user.id) {
     return NextResponse.json({ error: 'Board not found' }, { status: 404 })
   }
 
-  return NextResponse.json({ context: board.projectContext })
+  return NextResponse.json({
+    documents: board.contextDocuments,
+    boardTitle: board.title,
+  })
 }
 
-export async function PUT(
+export async function POST(
   req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
@@ -45,33 +52,45 @@ export async function PUT(
       return NextResponse.json({ error: 'Board not found' }, { status: 404 })
     }
 
-    const {
-      guidelinesMarkdown,
-      techStackMarkdown,
-      conventionsMarkdown,
-      messagingStandards,
-    } = await req.json()
+    const { title, fileName, content, order } = await req.json()
 
-    const context = await prisma.projectContext.upsert({
-      where: { boardId: id },
-      update: {
-        ...(guidelinesMarkdown !== undefined ? { guidelinesMarkdown } : {}),
-        ...(techStackMarkdown !== undefined ? { techStackMarkdown } : {}),
-        ...(conventionsMarkdown !== undefined ? { conventionsMarkdown } : {}),
-        ...(messagingStandards !== undefined ? { messagingStandards } : {}),
-      },
-      create: {
-        boardId: id,
-        guidelinesMarkdown: guidelinesMarkdown || '',
-        techStackMarkdown: techStackMarkdown || '',
-        conventionsMarkdown: conventionsMarkdown || '',
-        messagingStandards: messagingStandards || '',
+    if (!fileName || !fileName.trim()) {
+      return NextResponse.json({ error: 'File name is required' }, { status: 400 })
+    }
+
+    const cleanFileName = fileName.trim().toLowerCase().replace(/[^a-z0-9_.-]/g, '-')
+
+    const existing = await prisma.contextDocument.findUnique({
+      where: {
+        boardId_fileName: {
+          boardId: id,
+          fileName: cleanFileName,
+        },
       },
     })
 
-    return NextResponse.json({ context })
+    if (existing) {
+      return NextResponse.json(
+        { error: `File "${cleanFileName}" already exists in this project.` },
+        { status: 400 }
+      )
+    }
+
+    const docCount = await prisma.contextDocument.count({ where: { boardId: id } })
+
+    const document = await prisma.contextDocument.create({
+      data: {
+        boardId: id,
+        fileName: cleanFileName,
+        title: title?.trim() || cleanFileName,
+        content: content || '',
+        order: order !== undefined ? order : docCount,
+      },
+    })
+
+    return NextResponse.json({ document }, { status: 201 })
   } catch (error: any) {
-    console.error('Update context error:', error)
-    return NextResponse.json({ error: 'Failed to update project context' }, { status: 500 })
+    console.error('Create context document error:', error)
+    return NextResponse.json({ error: 'Failed to create context document' }, { status: 500 })
   }
 }

@@ -1,0 +1,117 @@
+import { NextResponse } from 'next/server'
+import { getCurrentUser } from '@/lib/auth'
+import { prisma } from '@/lib/prisma'
+
+export async function GET(
+  _req: Request,
+  { params }: { params: Promise<{ id: string; docId: string }> }
+) {
+  const user = await getCurrentUser()
+  if (!user) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
+  const { id, docId } = await params
+
+  const doc = await prisma.contextDocument.findUnique({
+    where: { id: docId },
+    include: { board: true },
+  })
+
+  if (!doc || doc.boardId !== id || doc.board.ownerId !== user.id) {
+    return NextResponse.json({ error: 'Context document not found' }, { status: 404 })
+  }
+
+  return NextResponse.json({ document: doc })
+}
+
+export async function PUT(
+  req: Request,
+  { params }: { params: Promise<{ id: string; docId: string }> }
+) {
+  const user = await getCurrentUser()
+  if (!user) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
+  const { id, docId } = await params
+
+  try {
+    const existing = await prisma.contextDocument.findUnique({
+      where: { id: docId },
+      include: { board: true },
+    })
+
+    if (!existing || existing.boardId !== id || existing.board.ownerId !== user.id) {
+      return NextResponse.json({ error: 'Context document not found' }, { status: 404 })
+    }
+
+    const { title, fileName, content, order } = await req.json()
+
+    let cleanFileName: string | undefined = undefined
+    if (fileName && fileName.trim()) {
+      cleanFileName = fileName.trim().toLowerCase().replace(/[^a-z0-9_.-]/g, '-')
+      if (cleanFileName !== existing.fileName) {
+        const conflict = await prisma.contextDocument.findUnique({
+          where: {
+            boardId_fileName: {
+              boardId: id,
+              fileName: cleanFileName,
+            },
+          },
+        })
+        if (conflict) {
+          return NextResponse.json(
+            { error: `File "${cleanFileName}" already exists in this project.` },
+            { status: 400 }
+          )
+        }
+      }
+    }
+
+    const updated = await prisma.contextDocument.update({
+      where: { id: docId },
+      data: {
+        ...(title !== undefined ? { title: title.trim() } : {}),
+        ...(cleanFileName !== undefined ? { fileName: cleanFileName } : {}),
+        ...(content !== undefined ? { content } : {}),
+        ...(order !== undefined ? { order } : {}),
+      },
+    })
+
+    return NextResponse.json({ document: updated })
+  } catch (error: any) {
+    console.error('Update context document error:', error)
+    return NextResponse.json({ error: 'Failed to update context document' }, { status: 500 })
+  }
+}
+
+export async function DELETE(
+  _req: Request,
+  { params }: { params: Promise<{ id: string; docId: string }> }
+) {
+  const user = await getCurrentUser()
+  if (!user) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
+  const { id, docId } = await params
+
+  try {
+    const existing = await prisma.contextDocument.findUnique({
+      where: { id: docId },
+      include: { board: true },
+    })
+
+    if (!existing || existing.boardId !== id || existing.board.ownerId !== user.id) {
+      return NextResponse.json({ error: 'Context document not found' }, { status: 404 })
+    }
+
+    await prisma.contextDocument.delete({ where: { id: docId } })
+
+    return NextResponse.json({ success: true, message: 'Document deleted successfully' })
+  } catch (error: any) {
+    console.error('Delete context document error:', error)
+    return NextResponse.json({ error: 'Failed to delete context document' }, { status: 500 })
+  }
+}
