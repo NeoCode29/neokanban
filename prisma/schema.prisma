@@ -1,0 +1,111 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+model User {
+  id           String                @id @default(cuid())
+  email        String                @unique
+  name         String
+  passwordHash String
+  avatarUrl    String?
+  createdAt    DateTime              @default(now())
+  updatedAt    DateTime              @updatedAt
+  boards       Board[]               @relation("BoardOwner")
+  tokens       PersonalAccessToken[]
+  comments     Comment[]
+}
+
+model PersonalAccessToken {
+  id         String    @id @default(cuid())
+  name       String    // e.g. "Claude Desktop", "Cursor AI"
+  tokenHash  String    @unique
+  tokenHint  String    // e.g. "neokan_pat_...abcd"
+  userId     String
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lastUsedAt DateTime?
+  createdAt  DateTime  @default(now())
+}
+
+model Board {
+  id             String          @id @default(cuid())
+  title          String
+  description    String?
+  isFavorite     Boolean         @default(false)
+  ownerId        String
+  owner          User            @relation("BoardOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  columns        Column[]
+  projectContext ProjectContext?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+}
+
+model ProjectContext {
+  id                  String   @id @default(cuid())
+  boardId             String   @unique
+  board               Board    @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  guidelinesMarkdown  String   @default("")
+  techStackMarkdown   String   @default("")
+  conventionsMarkdown String   @default("")
+  messagingStandards  String   @default("")
+  updatedAt           DateTime @updatedAt
+}
+
+model Column {
+  id        String   @id @default(cuid())
+  boardId   String
+  board     Board    @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  title     String   // "Backlog", "To Do", "In Progress", "In Review", "Done"
+  order     Int      @default(0)
+  colorCode String?  @default("#64748b")
+  cards     Card[]
+  createdAt DateTime @default(now())
+}
+
+model Card {
+  id          String          @id @default(cuid())
+  columnId    String
+  column      Column          @relation(fields: [columnId], references: [id], onDelete: Cascade)
+  title       String
+  description String          @default("")
+  order       Int             @default(0)
+  priority    Priority        @default(MEDIUM)
+  dueDate     DateTime?
+  tags        String[]        @default([])
+  checklists  ChecklistItem[]
+  comments    Comment[]
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+}
+
+model ChecklistItem {
+  id          String   @id @default(cuid())
+  cardId      String
+  card        Card     @relation(fields: [cardId], references: [id], onDelete: Cascade)
+  title       String
+  isCompleted Boolean  @default(false)
+  order       Int      @default(0)
+}
+
+model Comment {
+  id            String   @id @default(cuid())
+  cardId        String
+  card          Card     @relation(fields: [cardId], references: [id], onDelete: Cascade)
+  userId        String?
+  user          User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  authorName    String
+  isAiGenerated Boolean  @default(false)
+  content       String
+  createdAt     DateTime @default(now())
+}
