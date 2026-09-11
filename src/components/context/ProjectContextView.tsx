@@ -140,36 +140,36 @@ ${context.messagingStandards}
   return (
     <div className="space-y-4">
       {/* Top Banner */}
-      <div className="bg-slate-900/60 border border-slate-800 rounded-xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+      <div className="bg-white border border-neutral-200/90 rounded-2xl p-4 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <div className="flex items-center gap-2">
-            <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-200">
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-neutral-900">
               Project Context & Guidelines
             </h3>
-            <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-slate-800 text-slate-400 border border-slate-700/60">
+            <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
               MCP Active
             </span>
           </div>
-          <p className="text-xs text-slate-400 mt-0.5">
-            Living guidelines served automatically to AI agents via MCP tool <code className="text-blue-400 font-mono">get_board_context</code>.
+          <p className="text-xs text-neutral-500 mt-0.5">
+            Living guidelines served automatically to AI agents via MCP tool <code className="text-neutral-900 font-semibold font-mono">get_board_context</code>.
           </p>
         </div>
 
         <div className="flex items-center gap-2 self-start sm:self-auto shrink-0">
           <button
             onClick={handleCopyPrompt}
-            className="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-700 rounded-lg text-xs font-medium flex items-center gap-1.5 transition-colors"
+            className="px-3 py-1.5 bg-white hover:bg-neutral-50 text-neutral-700 border border-neutral-200 rounded-lg text-xs font-medium flex items-center gap-1.5 shadow-xs transition-colors"
           >
-            {copiedPrompt ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+            {copiedPrompt ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5 text-neutral-500" />}
             <span>{copiedPrompt ? 'Copied' : 'Copy Prompt'}</span>
           </button>
 
           <button
             onClick={handleSave}
             disabled={saving}
-            className="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-medium flex items-center gap-1.5 transition-colors disabled:opacity-50"
+            className="px-3.5 py-1.5 bg-neutral-900 hover:bg-neutral-800 text-white rounded-lg text-xs font-semibold flex items-center gap-1.5 shadow-xs transition-colors disabled:opacity-50"
           >
-            {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : saveSuccess ? <Check className="w-3.5 h-3.5 text-emerald-300" /> : <Save className="w-3.5 h-3.5" />}
+            {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : saveSuccess ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Save className="w-3.5 h-3.5" />}
             <span>{saveSuccess ? 'Saved' : 'Save'}</span>
           </button>
         </div>
@@ -184,29 +184,29 @@ ${context.messagingStandards}
             <button
               key={tab.key}
               onClick={() => setActiveTab(tab.key)}
-              className={`p-3 rounded-lg border text-left transition-all ${
+              className={`p-3 rounded-xl border text-left transition-all ${
                 isActive
-                  ? 'bg-slate-800 border-slate-700 text-white'
-                  : 'bg-slate-900/40 border-slate-800/80 hover:border-slate-700 text-slate-400'
+                  ? 'bg-white border-neutral-300 text-neutral-900 shadow-xs'
+                  : 'bg-neutral-100/70 border-neutral-200/60 hover:border-neutral-300 text-neutral-600'
               }`}
             >
               <div className="flex items-center gap-2 mb-0.5">
-                <Icon className={`w-3.5 h-3.5 ${isActive ? 'text-blue-400' : 'text-slate-500'}`} />
+                <Icon className={`w-3.5 h-3.5 ${isActive ? 'text-neutral-900' : 'text-neutral-400'}`} />
                 <span className="text-xs font-medium">{tab.label}</span>
               </div>
-              <p className="text-[10px] text-slate-500 line-clamp-1">{tab.desc}</p>
+              <p className="text-[10px] text-neutral-500 line-clamp-1">{tab.desc}</p>
             </button>
           )
         })}
       </div>
 
       {/* Split Pane Editor */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Editor */}
-        <div className="bg-slate-900/60 border border-slate-800 rounded-xl p-3 flex flex-col">
-          <div className="flex items-center justify-between pb-2 mb-2 border-b border-slate-800 text-[11px] text-slate-400">
+        <div className="bg-white border border-neutral-200/90 rounded-2xl p-4 shadow-xs flex flex-col">
+          <div className="flex items-center justify-between pb-2 mb-2 border-b border-neutral-100 text-[11px] text-neutral-500 font-medium">
             <span className="flex items-center gap-1.5">
-              <FileCode className="w-3.5 h-3.5 text-slate-400" />
+              <FileCode className="w-3.5 h-3.5 text-neutral-400" />
               Markdown Editor
             </span>
           </div>
@@ -216,17 +216,17 @@ ${context.messagingStandards}
             onChange={(e) => setContext({ ...context, [activeTab]: e.target.value })}
             rows={18}
             placeholder="Write markdown documentation here..."
-            className="w-full flex-1 bg-slate-950 border border-slate-800 rounded-lg p-3 text-xs font-mono text-slate-200 placeholder-slate-600 focus:outline-none focus:border-blue-500 leading-relaxed resize-none"
+            className="w-full flex-1 bg-neutral-50/70 border border-neutral-200 rounded-xl p-3 text-xs font-mono text-neutral-800 placeholder-neutral-400 focus:outline-none focus:border-neutral-400 leading-relaxed resize-none"
           />
         </div>
 
         {/* Live Preview */}
-        <div className="bg-slate-900/60 border border-slate-800 rounded-xl p-3 flex flex-col">
-          <div className="pb-2 mb-2 border-b border-slate-800 text-[11px] text-slate-400">
+        <div className="bg-white border border-neutral-200/90 rounded-2xl p-4 shadow-xs flex flex-col">
+          <div className="pb-2 mb-2 border-b border-neutral-100 text-[11px] text-neutral-500 font-medium">
             Rendered Preview
           </div>
 
-          <div className="flex-1 bg-slate-950/60 border border-slate-800 rounded-lg p-3 overflow-y-auto max-h-[440px]">
+          <div className="flex-1 bg-neutral-50/70 border border-neutral-200 rounded-xl p-4 overflow-y-auto max-h-[440px]">
             <MarkdownViewer content={context[activeTab]} />
           </div>
         </div>

@@ -100,7 +100,7 @@ export default function CardDetailModal({
   }
 
   const handleDeleteCard = async () => {
-    if (!confirm('Are you sure you want to permanently delete this task?')) return
+    if (!confirm('Are you sure you want to delete this task?')) return
 
     try {
       const res = await fetch(`/api/cards/${cardId}`, { method: 'DELETE' })
@@ -130,9 +130,9 @@ export default function CardDetailModal({
 
   if (loading) {
     return (
-      <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-4">
-        <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 flex items-center gap-3 text-slate-400">
-          <Loader2 className="w-5 h-5 animate-spin text-blue-500" />
+      <div className="fixed inset-0 z-50 bg-neutral-900/40 backdrop-blur-xs flex items-center justify-center p-4">
+        <div className="bg-white border border-neutral-200 rounded-xl p-6 flex items-center gap-3 text-neutral-600 shadow-xl">
+          <Loader2 className="w-5 h-5 animate-spin text-neutral-800" />
           <span className="text-xs">Loading task...</span>
         </div>
       </div>
@@ -142,37 +142,37 @@ export default function CardDetailModal({
   if (!card) return null
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
-      <div className="bg-slate-900 border border-slate-800 rounded-xl w-full max-w-2xl my-6 shadow-xl overflow-hidden flex flex-col max-h-[88vh] animate-in fade-in zoom-in-95">
+    <div className="fixed inset-0 z-50 bg-neutral-900/40 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
+      <div className="bg-white border border-neutral-200/90 rounded-2xl w-full max-w-2xl my-6 shadow-2xl overflow-hidden flex flex-col max-h-[88vh] animate-in fade-in zoom-in-95">
         {/* Header */}
-        <div className="p-4 border-b border-slate-800 flex items-start justify-between gap-3 bg-slate-950/40">
+        <div className="p-4 border-b border-neutral-100 flex items-start justify-between gap-3 bg-neutral-50/50">
           <div className="flex-1 min-w-0">
             <input
               type="text"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               onBlur={handleSaveDetails}
-              className="w-full text-base font-semibold text-white bg-transparent border-b border-transparent hover:border-slate-700 focus:border-blue-500 focus:outline-none transition-colors px-1 py-0.5 rounded"
+              className="w-full text-base font-semibold text-neutral-900 bg-transparent border-b border-transparent hover:border-neutral-300 focus:border-neutral-900 focus:outline-none transition-colors px-1 py-0.5 rounded"
               placeholder="Task Title"
             />
             <div className="flex items-center gap-2.5 mt-2 px-1">
               <select
                 value={priority}
                 onChange={(e) => setPriority(e.target.value as any)}
-                className="bg-slate-950 border border-slate-800 rounded px-2 py-0.5 text-xs text-slate-300 focus:outline-none focus:border-blue-500"
+                className="bg-white border border-neutral-200 rounded-md px-2 py-0.5 text-xs text-neutral-700 font-medium focus:outline-none focus:border-neutral-900"
               >
-                <option value="LOW">LOW</option>
-                <option value="MEDIUM">MEDIUM</option>
-                <option value="HIGH">HIGH</option>
-                <option value="URGENT">URGENT</option>
+                <option value="LOW">Priority: LOW</option>
+                <option value="MEDIUM">Priority: MEDIUM</option>
+                <option value="HIGH">Priority: HIGH</option>
+                <option value="URGENT">Priority: URGENT</option>
               </select>
 
               <button
                 onClick={handleSaveDetails}
                 disabled={saving}
-                className="text-xs text-blue-400 hover:text-blue-300 flex items-center gap-1 transition-colors disabled:opacity-50"
+                className="text-xs text-neutral-600 hover:text-neutral-900 font-medium flex items-center gap-1 transition-colors disabled:opacity-50"
               >
-                {saving ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />}
+                {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
                 <span>Save</span>
               </button>
             </div>
@@ -181,14 +181,14 @@ export default function CardDetailModal({
           <div className="flex items-center gap-1">
             <button
               onClick={handleDeleteCard}
-              className="p-1.5 text-slate-400 hover:text-red-400 hover:bg-slate-800 rounded-lg transition-colors"
+              className="p-1.5 text-neutral-400 hover:text-red-600 hover:bg-neutral-100 rounded-lg transition-colors"
               title="Delete Task"
             >
               <Trash2 className="w-4 h-4" />
             </button>
             <button
               onClick={onClose}
-              className="p-1.5 text-slate-400 hover:text-slate-200 hover:bg-slate-800 rounded-lg transition-colors"
+              className="p-1.5 text-neutral-400 hover:text-neutral-700 hover:bg-neutral-100 rounded-lg transition-colors"
             >
               <X className="w-4 h-4" />
             </button>
@@ -199,7 +199,7 @@ export default function CardDetailModal({
         <div className="p-5 space-y-5 overflow-y-auto flex-1">
           {/* Tags */}
           <div>
-            <label className="block text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-1.5 flex items-center gap-1">
+            <label className="block text-[11px] font-semibold text-neutral-500 uppercase tracking-wider mb-1.5 flex items-center gap-1">
               <Tag className="w-3 h-3" />
               <span>Tags</span>
             </label>
@@ -207,12 +207,12 @@ export default function CardDetailModal({
               {tags.map((tag) => (
                 <span
                   key={tag}
-                  className="inline-flex items-center gap-1 text-[11px] font-mono px-2 py-0.5 rounded bg-slate-950 border border-slate-800 text-slate-300"
+                  className="inline-flex items-center gap-1 text-[11px] font-mono px-2 py-0.5 rounded-md bg-neutral-100 border border-neutral-200 text-neutral-700"
                 >
                   #{tag}
                   <button
                     onClick={() => handleRemoveTag(tag)}
-                    className="hover:text-red-400 text-slate-500"
+                    className="hover:text-red-500 text-neutral-400"
                   >
                     <X className="w-2.5 h-2.5" />
                   </button>
@@ -224,7 +224,7 @@ export default function CardDetailModal({
                 onChange={(e) => setTagInput(e.target.value)}
                 onKeyDown={handleAddTag}
                 placeholder="+ Add tag..."
-                className="bg-transparent border border-dashed border-slate-800 hover:border-slate-700 rounded px-2 py-0.5 text-xs text-slate-300 placeholder-slate-500 focus:outline-none focus:border-blue-500"
+                className="bg-transparent border border-dashed border-neutral-300 hover:border-neutral-400 rounded-md px-2 py-0.5 text-xs text-neutral-800 placeholder-neutral-400 focus:outline-none focus:border-neutral-900"
               />
             </div>
           </div>
@@ -232,7 +232,7 @@ export default function CardDetailModal({
           {/* Description */}
           <div>
             <div className="flex items-center justify-between mb-1.5">
-              <label className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-1">
+              <label className="text-[11px] font-semibold text-neutral-500 uppercase tracking-wider flex items-center gap-1">
                 <FileText className="w-3 h-3" />
                 <span>Description</span>
               </label>
@@ -241,14 +241,14 @@ export default function CardDetailModal({
                 <button
                   type="button"
                   onClick={() => setDescription(standardDescriptionTemplate)}
-                  className="text-[11px] text-blue-400 hover:text-blue-300 transition-colors"
+                  className="text-[11px] text-neutral-600 hover:text-neutral-900 underline transition-colors"
                 >
                   Insert Standard Template
                 </button>
                 <button
                   type="button"
                   onClick={() => setPreviewDesc(!previewDesc)}
-                  className="text-xs text-slate-400 hover:text-slate-200 flex items-center gap-1 px-2 py-0.5 rounded bg-slate-950 border border-slate-800"
+                  className="text-xs text-neutral-600 hover:text-neutral-900 flex items-center gap-1 px-2 py-0.5 rounded-md bg-neutral-100 border border-neutral-200"
                 >
                   {previewDesc ? <Edit3 className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
                   <span>{previewDesc ? 'Edit' : 'Preview'}</span>
@@ -257,7 +257,7 @@ export default function CardDetailModal({
             </div>
 
             {previewDesc ? (
-              <div className="min-h-[120px] p-3 rounded-lg bg-slate-950/80 border border-slate-800 overflow-y-auto">
+              <div className="min-h-[120px] p-3 rounded-lg bg-neutral-50 border border-neutral-200 overflow-y-auto">
                 <MarkdownViewer content={description} />
               </div>
             ) : (
@@ -267,13 +267,13 @@ export default function CardDetailModal({
                 onBlur={handleSaveDetails}
                 rows={6}
                 placeholder="Describe requirements or technical scope..."
-                className="w-full bg-slate-950 border border-slate-800 rounded-lg p-3 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-blue-500 font-mono resize-y leading-relaxed"
+                className="w-full bg-neutral-50 border border-neutral-200 rounded-lg p-3 text-xs text-neutral-900 placeholder-neutral-400 focus:outline-none focus:border-neutral-900 font-mono resize-y leading-relaxed"
               />
             )}
           </div>
 
           {/* Checklist */}
-          <div className="pt-3 border-t border-slate-800/80">
+          <div className="pt-3 border-t border-neutral-100">
             <ChecklistSection
               cardId={card.id}
               checklists={card.checklists as ChecklistItemData[]}
@@ -286,7 +286,7 @@ export default function CardDetailModal({
           </div>
 
           {/* Comments */}
-          <div className="pt-3 border-t border-slate-800/80">
+          <div className="pt-3 border-t border-neutral-100">
             <CommentSection
               cardId={card.id}
               comments={(card as any).comments || []}

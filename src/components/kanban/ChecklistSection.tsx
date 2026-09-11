@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { CheckSquare, Plus, Trash2, CheckCircle, Loader2 } from 'lucide-react'
+import { CheckSquare, Plus, Trash2, Loader2 } from 'lucide-react'
 
 export interface ChecklistItemData {
   id: string
@@ -33,7 +33,6 @@ export default function ChecklistSection({
     setTogglingId(item.id)
     const newStatus = !item.isCompleted
 
-    // Optimistic update
     const nextList = checklists.map((c) =>
       c.id === item.id ? { ...c, isCompleted: newStatus } : c
     )
@@ -90,21 +89,21 @@ export default function ChecklistSection({
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <h4 className="text-xs font-semibold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
-          <CheckSquare className="w-4 h-4 text-blue-400" />
-          <span>Subtasks & Checklist</span>
+        <h4 className="text-xs font-semibold text-neutral-600 uppercase tracking-wider flex items-center gap-1.5">
+          <CheckSquare className="w-3.5 h-3.5 text-neutral-500" />
+          <span>Checklist</span>
         </h4>
-        <span className="text-xs font-medium text-slate-400">
+        <span className="text-xs font-medium text-neutral-500">
           {completedCount}/{totalCount} ({progressPercent}%)
         </span>
       </div>
 
       {/* Progress Bar */}
       {totalCount > 0 && (
-        <div className="w-full bg-slate-950 rounded-full h-1.5 overflow-hidden border border-slate-800">
+        <div className="w-full bg-neutral-100 rounded-full h-1.5 overflow-hidden border border-neutral-200">
           <div
             className={`h-full transition-all duration-300 ${
-              progressPercent === 100 ? 'bg-emerald-500' : 'bg-blue-500'
+              progressPercent === 100 ? 'bg-emerald-500' : 'bg-neutral-900'
             }`}
             style={{ width: `${progressPercent}%` }}
           />
@@ -112,11 +111,11 @@ export default function ChecklistSection({
       )}
 
       {/* Checklist Items List */}
-      <div className="space-y-1.5">
+      <div className="space-y-1">
         {checklists.map((item) => (
           <div
             key={item.id}
-            className="group flex items-center justify-between p-2 rounded-xl bg-slate-950/60 hover:bg-slate-950 border border-slate-800/80 transition-all"
+            className="group flex items-center justify-between p-2 rounded-lg bg-neutral-50/80 hover:bg-neutral-100/80 border border-neutral-200/80 transition-all"
           >
             <label className="flex items-center gap-2.5 flex-1 min-w-0 cursor-pointer">
               <input
@@ -124,13 +123,13 @@ export default function ChecklistSection({
                 checked={item.isCompleted}
                 onChange={() => handleToggle(item)}
                 disabled={togglingId === item.id}
-                className="w-4 h-4 rounded border-slate-700 bg-slate-900 text-blue-600 focus:ring-blue-500 focus:ring-offset-0 cursor-pointer"
+                className="w-4 h-4 rounded border-neutral-300 text-neutral-900 focus:ring-neutral-900 focus:ring-offset-0 cursor-pointer"
               />
               <span
                 className={`text-xs select-none break-all transition-all ${
                   item.isCompleted
-                    ? 'line-through text-slate-500'
-                    : 'text-slate-200 group-hover:text-white'
+                    ? 'line-through text-neutral-400'
+                    : 'text-neutral-800'
                 }`}
               >
                 {item.title}
@@ -139,7 +138,7 @@ export default function ChecklistSection({
 
             <button
               onClick={() => handleDelete(item.id)}
-              className="opacity-0 group-hover:opacity-100 p-1 text-slate-500 hover:text-red-400 rounded transition-all"
+              className="opacity-0 group-hover:opacity-100 p-1 text-neutral-400 hover:text-red-600 rounded transition-all"
               title="Delete item"
             >
               <Trash2 className="w-3.5 h-3.5" />
@@ -154,13 +153,13 @@ export default function ChecklistSection({
           type="text"
           value={newTitle}
           onChange={(e) => setNewTitle(e.target.value)}
-          placeholder="Add an acceptance criteria or subtask..."
-          className="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-3 py-1.5 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+          placeholder="Add acceptance criteria..."
+          className="flex-1 bg-neutral-50 border border-neutral-200 rounded-lg px-3 py-1.5 text-xs text-neutral-900 placeholder-neutral-400 focus:outline-none focus:border-neutral-900"
         />
         <button
           type="submit"
           disabled={adding || !newTitle.trim()}
-          className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-xl text-xs font-medium flex items-center gap-1 transition-colors disabled:opacity-50"
+          className="px-3 py-1.5 bg-neutral-900 hover:bg-neutral-800 text-white rounded-lg text-xs font-medium flex items-center gap-1 transition-colors disabled:opacity-50"
         >
           {adding ? <Loader2 className="w-3 h-3 animate-spin" /> : <Plus className="w-3.5 h-3.5" />}
           <span>Add</span>

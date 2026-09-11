@@ -56,36 +56,36 @@ export default function KanbanColumn({
   return (
     <div
       ref={setNodeRef}
-      className={`w-72 sm:w-80 shrink-0 bg-slate-900/40 rounded-xl border border-slate-800 flex flex-col max-h-[calc(100vh-12rem)] transition-all ${
-        isOver ? 'border-blue-500/50 bg-slate-900/70' : ''
+      className={`w-72 sm:w-80 shrink-0 bg-[#f4f5f7] rounded-2xl p-3 flex flex-col max-h-[calc(100vh-13rem)] transition-all ${
+        isOver ? 'ring-2 ring-neutral-300 bg-neutral-200/60' : ''
       }`}
     >
-      {/* Column Header */}
-      <div className="p-3 flex items-center justify-between border-b border-slate-800/80">
+      {/* Column Header: Status Dot & Title */}
+      <div className="px-1 py-1.5 mb-2 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <span
             className="w-2 h-2 rounded-full shrink-0"
-            style={{ backgroundColor: column.colorCode || '#3b82f6' }}
+            style={{ backgroundColor: column.colorCode || '#64748b' }}
           />
-          <h3 className="text-xs font-semibold text-slate-200 uppercase tracking-wider">
+          <h3 className="text-xs font-semibold text-neutral-800 tracking-tight">
             {column.title}
           </h3>
-          <span className="text-[10px] font-mono font-medium px-1.5 py-0.5 rounded bg-slate-800 text-slate-400">
+          <span className="text-[11px] font-medium text-neutral-400">
             {column.cards.length}
           </span>
         </div>
 
         <button
           onClick={() => setIsAdding(true)}
-          className="p-1 text-slate-400 hover:text-slate-200 hover:bg-slate-800 rounded transition-colors"
-          title="Add task"
+          className="p-1 text-neutral-400 hover:text-neutral-700 hover:bg-neutral-200/80 rounded-md transition-colors"
+          title="Add card"
         >
           <Plus className="w-3.5 h-3.5" />
         </button>
       </div>
 
-      {/* Cards Container */}
-      <div className="flex-1 p-2.5 space-y-2 overflow-y-auto min-h-[100px]">
+      {/* Cards List */}
+      <div className="flex-1 space-y-3 overflow-y-auto min-h-[100px] px-0.5">
         <SortableContext items={cardIds} strategy={verticalListSortingStrategy}>
           {column.cards.map((card) => (
             <KanbanCard key={card.id} card={card} onClick={onCardClick} />
@@ -93,21 +93,24 @@ export default function KanbanColumn({
         </SortableContext>
 
         {column.cards.length === 0 && !isAdding && (
-          <div className="h-20 flex items-center justify-center border border-dashed border-slate-800/60 rounded-lg text-xs text-slate-500 font-mono">
-            Empty column
+          <div className="h-24 flex items-center justify-center border border-dashed border-neutral-300/80 rounded-xl text-xs text-neutral-400">
+            No tasks in this list
           </div>
         )}
 
         {/* Quick Add Form */}
         {isAdding && (
-          <form onSubmit={handleCreateCard} className="bg-slate-900 border border-slate-700 rounded-lg p-2.5 shadow-md">
+          <form
+            onSubmit={handleCreateCard}
+            className="bg-white border border-neutral-200 rounded-xl p-3 shadow-sm animate-in fade-in"
+          >
             <textarea
               autoFocus
               value={newTitle}
               onChange={(e) => setNewTitle(e.target.value)}
-              placeholder="Task title..."
+              placeholder="What needs to be done?"
               rows={2}
-              className="w-full bg-slate-950 border border-slate-800 rounded p-2 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-blue-500 resize-none mb-2"
+              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg p-2 text-xs text-neutral-900 placeholder-neutral-400 focus:outline-none focus:border-neutral-400 resize-none mb-2"
               onKeyDown={(e) => {
                 if (e.key === 'Enter' && !e.shiftKey) {
                   e.preventDefault()
@@ -119,14 +122,14 @@ export default function KanbanColumn({
               <button
                 type="button"
                 onClick={() => setIsAdding(false)}
-                className="p-1 text-slate-400 hover:text-slate-200"
+                className="p-1 text-neutral-400 hover:text-neutral-700"
               >
-                <X className="w-3.5 h-3.5" />
+                <X className="w-4 h-4" />
               </button>
               <button
                 type="submit"
                 disabled={loading || !newTitle.trim()}
-                className="px-2.5 py-1 bg-blue-600 hover:bg-blue-500 text-white rounded text-xs font-medium flex items-center gap-1 transition-colors disabled:opacity-50"
+                className="px-3 py-1 bg-neutral-900 hover:bg-neutral-800 text-white rounded-lg text-xs font-medium flex items-center gap-1 transition-colors disabled:opacity-50"
               >
                 {loading && <Loader2 className="w-3 h-3 animate-spin" />}
                 <span>Add</span>
@@ -136,14 +139,14 @@ export default function KanbanColumn({
         )}
       </div>
 
-      {/* Bottom Add button */}
+      {/* Bottom Add Card Button */}
       {!isAdding && (
-        <div className="p-2 pt-0">
+        <div className="pt-2">
           <button
             onClick={() => setIsAdding(true)}
-            className="w-full py-1.5 px-2 rounded-lg hover:bg-slate-800/60 text-xs text-slate-400 hover:text-slate-200 flex items-center justify-center gap-1.5 transition-colors"
+            className="w-full py-1.5 rounded-lg hover:bg-neutral-200/60 text-xs font-medium text-neutral-500 hover:text-neutral-800 flex items-center justify-center gap-1.5 transition-colors"
           >
-            <Plus className="w-3 h-3" />
+            <Plus className="w-3.5 h-3.5" />
             <span>Add card</span>
           </button>
         </div>

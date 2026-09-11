@@ -203,7 +203,7 @@ export default function KanbanBoard({
           {isAddingColumn ? (
             <form
               onSubmit={handleCreateColumn}
-              className="bg-slate-900 border border-slate-800 rounded-xl p-3 shadow-md"
+              className="bg-white border border-neutral-200 rounded-2xl p-3 shadow-xs"
             >
               <input
                 autoFocus
@@ -211,20 +211,20 @@ export default function KanbanBoard({
                 value={newColumnTitle}
                 onChange={(e) => setNewColumnTitle(e.target.value)}
                 placeholder="Column name..."
-                className="w-full bg-slate-950 border border-slate-800 rounded px-2.5 py-1.5 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-blue-500 mb-2.5"
+                className="w-full bg-neutral-50 border border-neutral-200 rounded-xl px-2.5 py-1.5 text-xs text-neutral-900 placeholder-neutral-400 focus:outline-none focus:border-neutral-400 mb-2.5"
               />
               <div className="flex items-center justify-end gap-2">
                 <button
                   type="button"
                   onClick={() => setIsAddingColumn(false)}
-                  className="px-2.5 py-1 text-xs text-slate-400 hover:text-slate-200"
+                  className="px-2.5 py-1 text-xs text-neutral-500 hover:text-neutral-800"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={addingColumnLoading || !newColumnTitle.trim()}
-                  className="px-3 py-1 bg-blue-600 hover:bg-blue-500 text-white rounded text-xs font-medium flex items-center gap-1 transition-colors disabled:opacity-50"
+                  className="px-3 py-1 bg-neutral-900 hover:bg-neutral-800 text-white rounded-lg text-xs font-semibold flex items-center gap-1 transition-colors disabled:opacity-50"
                 >
                   {addingColumnLoading && <Loader2 className="w-3 h-3 animate-spin" />}
                   <span>Add</span>
@@ -234,7 +234,7 @@ export default function KanbanBoard({
           ) : (
             <button
               onClick={() => setIsAddingColumn(true)}
-              className="w-full py-2.5 px-3 rounded-xl border border-dashed border-slate-800 hover:border-slate-700 hover:bg-slate-900/40 text-xs text-slate-400 hover:text-slate-200 flex items-center justify-center gap-1.5 transition-colors"
+              className="w-full py-3 px-3 rounded-2xl border border-dashed border-neutral-300 hover:border-neutral-400 hover:bg-neutral-100/60 text-xs font-medium text-neutral-500 hover:text-neutral-800 flex items-center justify-center gap-1.5 transition-colors"
             >
               <Plus className="w-3.5 h-3.5" />
               <span>Add column</span>
