@@ -37,11 +37,10 @@ export default function KanbanBoard({
   const [newColumnTitle, setNewColumnTitle] = useState('')
   const [addingColumnLoading, setAddingColumnLoading] = useState(false)
 
-  // Configure sensors for touch and mouse
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
-        distance: 5, // 5px movement required before drag starts to allow clicks
+        distance: 5,
       },
     }),
     useSensor(KeyboardSensor, {
@@ -64,9 +63,7 @@ export default function KanbanBoard({
   const handleDragStart = (event: DragStartEvent) => {
     const { active } = event
     const card = findCard(active.id as string)
-    if (card) {
-      setActiveCard(card)
-    }
+    if (card) setActiveCard(card)
   }
 
   const handleDragOver = (event: DragOverEvent) => {
@@ -75,7 +72,6 @@ export default function KanbanBoard({
 
     const activeId = active.id as string
     const overId = over.id as string
-
     if (activeId === overId) return
 
     const activeCol = findColumnOfCard(activeId)
@@ -84,7 +80,6 @@ export default function KanbanBoard({
 
     if (!activeCol || !overCol) return
 
-    // If dragging across different columns during dragOver, move card visually
     if (activeCol.id !== overCol.id) {
       setColumns((prev) => {
         const activeCards = [...activeCol.cards]
@@ -92,12 +87,10 @@ export default function KanbanBoard({
 
         const activeIndex = activeCards.findIndex((c) => c.id === activeId)
         const [movedCard] = activeCards.splice(activeIndex, 1)
-
         if (!movedCard) return prev
 
         movedCard.columnId = overCol.id
 
-        // Determine insert index
         const overIndex = overCards.findIndex((c) => c.id === overId)
         if (overIndex >= 0) {
           overCards.splice(overIndex, 0, movedCard)
@@ -117,20 +110,15 @@ export default function KanbanBoard({
   const handleDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event
     setActiveCard(null)
-
     if (!over) return
 
     const activeId = active.id as string
-    const overId = over.id as string
-
     const currentColumn = findColumnOfCard(activeId)
     if (!currentColumn) return
 
-    // Determine target index in current column
     const cardIndex = currentColumn.cards.findIndex((c) => c.id === activeId)
     if (cardIndex < 0) return
 
-    // Sync move with backend API
     try {
       await fetch(`/api/cards/${activeId}/move`, {
         method: 'POST',
@@ -200,7 +188,7 @@ export default function KanbanBoard({
       onDragOver={handleDragOver}
       onDragEnd={handleDragEnd}
     >
-      <div className="flex items-start gap-4 overflow-x-auto pb-8 pt-1">
+      <div className="flex items-start gap-3 overflow-x-auto pb-6 pt-1">
         {columns.map((column) => (
           <KanbanColumn
             key={column.id}
@@ -210,55 +198,54 @@ export default function KanbanBoard({
           />
         ))}
 
-        {/* Add Column Button / Form */}
-        <div className="w-72 shrink-0">
+        {/* Add Column Button */}
+        <div className="w-64 shrink-0">
           {isAddingColumn ? (
             <form
               onSubmit={handleCreateColumn}
-              className="bg-slate-900 border border-slate-800 rounded-2xl p-3.5 shadow-xl animate-in fade-in"
+              className="bg-slate-900 border border-slate-800 rounded-xl p-3 shadow-md"
             >
               <input
                 autoFocus
                 type="text"
                 value={newColumnTitle}
                 onChange={(e) => setNewColumnTitle(e.target.value)}
-                placeholder="Column name (e.g. Testing)"
-                className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 mb-3"
+                placeholder="Column name..."
+                className="w-full bg-slate-950 border border-slate-800 rounded px-2.5 py-1.5 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-blue-500 mb-2.5"
               />
               <div className="flex items-center justify-end gap-2">
                 <button
                   type="button"
                   onClick={() => setIsAddingColumn(false)}
-                  className="px-3 py-1.5 text-xs text-slate-400 hover:text-slate-200"
+                  className="px-2.5 py-1 text-xs text-slate-400 hover:text-slate-200"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={addingColumnLoading || !newColumnTitle.trim()}
-                  className="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-medium flex items-center gap-1.5 shadow-lg shadow-blue-600/25 disabled:opacity-50"
+                  className="px-3 py-1 bg-blue-600 hover:bg-blue-500 text-white rounded text-xs font-medium flex items-center gap-1 transition-colors disabled:opacity-50"
                 >
                   {addingColumnLoading && <Loader2 className="w-3 h-3 animate-spin" />}
-                  <span>Add Column</span>
+                  <span>Add</span>
                 </button>
               </div>
             </form>
           ) : (
             <button
               onClick={() => setIsAddingColumn(true)}
-              className="w-full py-3 px-4 rounded-2xl border border-dashed border-slate-800 hover:border-slate-700 bg-slate-900/30 hover:bg-slate-900/60 text-xs font-medium text-slate-400 hover:text-slate-200 flex items-center justify-center gap-2 transition-all shadow-sm"
+              className="w-full py-2.5 px-3 rounded-xl border border-dashed border-slate-800 hover:border-slate-700 hover:bg-slate-900/40 text-xs text-slate-400 hover:text-slate-200 flex items-center justify-center gap-1.5 transition-colors"
             >
-              <Plus className="w-4 h-4" />
-              <span>Add Another Column</span>
+              <Plus className="w-3.5 h-3.5" />
+              <span>Add column</span>
             </button>
           )}
         </div>
       </div>
 
-      {/* Floating Drag Overlay */}
       <DragOverlay>
         {activeCard ? (
-          <div className="rotate-2 scale-105 shadow-2xl">
+          <div className="rotate-1 shadow-xl">
             <KanbanCard card={activeCard} onClick={() => {}} />
           </div>
         ) : null}

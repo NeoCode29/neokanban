@@ -9,7 +9,6 @@ import {
   BookOpen,
   Star,
   Trash2,
-  Sparkles,
   Loader2,
 } from 'lucide-react'
 import KanbanBoard from '@/components/kanban/KanbanBoard'
@@ -73,7 +72,7 @@ export default function BoardPage({ params }: { params: Promise<{ id: string }> 
   }
 
   const handleDeleteBoard = async () => {
-    if (!confirm('Are you sure you want to delete this board and all its tasks?')) return
+    if (!confirm('Are you sure you want to delete this board?')) return
     try {
       const res = await fetch(`/api/boards/${id}`, { method: 'DELETE' })
       if (res.ok) router.push('/')
@@ -106,9 +105,9 @@ export default function BoardPage({ params }: { params: Promise<{ id: string }> 
 
   if (loading) {
     return (
-      <div className="py-24 flex flex-col items-center justify-center text-slate-500 gap-3">
-        <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
-        <p className="text-sm">Loading project board...</p>
+      <div className="py-24 flex flex-col items-center justify-center text-slate-500 gap-2">
+        <Loader2 className="w-6 h-6 animate-spin text-blue-500" />
+        <p className="text-xs">Loading board...</p>
       </div>
     )
   }
@@ -116,74 +115,74 @@ export default function BoardPage({ params }: { params: Promise<{ id: string }> 
   if (!board) return null
 
   return (
-    <div className="space-y-6">
-      {/* Board Header Bar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-800">
+    <div className="space-y-5">
+      {/* Board Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-800">
         <div className="flex items-center gap-3">
           <Link
             href="/"
-            className="p-2 text-slate-400 hover:text-white hover:bg-slate-900 rounded-xl transition-colors shrink-0"
-            title="Back to All Boards"
+            className="p-1.5 text-slate-400 hover:text-white hover:bg-slate-900 rounded-lg transition-colors shrink-0"
+            title="Back"
           >
-            <ArrowLeft className="w-5 h-5" />
+            <ArrowLeft className="w-4 h-4" />
           </Link>
 
           <div>
-            <div className="flex items-center gap-2.5">
-              <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-white">
+            <div className="flex items-center gap-2">
+              <h1 className="text-lg font-bold text-white tracking-tight">
                 {board.title}
               </h1>
               <button
                 onClick={toggleFavorite}
-                className={`p-1.5 rounded-lg transition-colors ${
+                className={`p-1 rounded transition-colors ${
                   board.isFavorite
-                    ? 'text-amber-400 bg-amber-400/10'
-                    : 'text-slate-500 hover:text-slate-300'
+                    ? 'text-amber-400 hover:text-amber-300'
+                    : 'text-slate-600 hover:text-slate-400'
                 }`}
               >
-                <Star className="w-4 h-4 fill-current" />
+                <Star className="w-3.5 h-3.5 fill-current" />
               </button>
             </div>
             {board.description && (
-              <p className="text-xs text-slate-400 mt-0.5 max-w-xl line-clamp-1">
+              <p className="text-xs text-slate-400 mt-0.5 line-clamp-1">
                 {board.description}
               </p>
             )}
           </div>
         </div>
 
-        {/* Tab Controls & Settings */}
-        <div className="flex items-center gap-2.5 self-start sm:self-auto">
-          <div className="bg-slate-900/90 border border-slate-800 p-1 rounded-xl flex items-center gap-1 shadow-sm">
+        {/* Tab Controls & Actions */}
+        <div className="flex items-center gap-2 self-start sm:self-auto">
+          <div className="bg-slate-900 border border-slate-800 p-0.5 rounded-lg flex items-center gap-1">
             <button
               onClick={() => setActiveTab('kanban')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5 transition-colors ${
+              className={`px-3 py-1.5 rounded-md text-xs font-medium flex items-center gap-1.5 transition-colors ${
                 activeTab === 'kanban'
-                  ? 'bg-blue-600 text-white shadow-sm'
+                  ? 'bg-slate-800 text-white shadow-sm'
                   : 'text-slate-400 hover:text-slate-200'
               }`}
             >
               <Kanban className="w-3.5 h-3.5" />
-              <span>Kanban Board</span>
+              <span>Board</span>
             </button>
 
             <button
               onClick={() => setActiveTab('context')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5 transition-colors ${
+              className={`px-3 py-1.5 rounded-md text-xs font-medium flex items-center gap-1.5 transition-colors ${
                 activeTab === 'context'
-                  ? 'bg-blue-600 text-white shadow-sm'
+                  ? 'bg-slate-800 text-white shadow-sm'
                   : 'text-slate-400 hover:text-slate-200'
               }`}
             >
               <BookOpen className="w-3.5 h-3.5" />
               <span>Project Context</span>
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
             </button>
           </div>
 
           <button
             onClick={handleDeleteBoard}
-            className="p-2 text-slate-400 hover:text-red-400 hover:bg-red-500/10 rounded-xl transition-colors"
+            className="p-1.5 text-slate-400 hover:text-red-400 hover:bg-slate-900 rounded-lg transition-colors"
             title="Delete Board"
           >
             <Trash2 className="w-4 h-4" />
@@ -191,7 +190,7 @@ export default function BoardPage({ params }: { params: Promise<{ id: string }> 
         </div>
       </div>
 
-      {/* Main Content Pane */}
+      {/* Main Content */}
       {activeTab === 'kanban' ? (
         <KanbanBoard
           boardId={board.id}

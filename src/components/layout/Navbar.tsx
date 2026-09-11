@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter, usePathname } from 'next/navigation'
-import { Layers, Settings, LogOut, LayoutDashboard, Sparkles } from 'lucide-react'
+import { Kanban, Settings, LogOut, LayoutGrid } from 'lucide-react'
 
 interface UserProfile {
   id: string
@@ -33,70 +33,69 @@ export default function Navbar() {
   }
 
   return (
-    <header className="border-b border-slate-800 bg-slate-950/80 backdrop-blur-md sticky top-0 z-40">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
+    <header className="border-b border-slate-800/80 bg-slate-950/80 backdrop-blur-md sticky top-0 z-40">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
         {/* Brand */}
         <div className="flex items-center gap-6">
-          <Link href="/" className="flex items-center gap-2.5 group">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-500 flex items-center justify-center shadow-md shadow-blue-500/20 group-hover:scale-105 transition-transform">
-              <Layers className="w-5 h-5 text-white" />
+          <Link href="/" className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center text-white shadow-sm">
+              <Kanban className="w-4 h-4" />
             </div>
             <div className="flex items-center gap-2">
-              <span className="text-lg font-bold tracking-tight text-white">NeoKanban</span>
-              <span className="hidden sm:inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/20">
-                <Sparkles className="w-2.5 h-2.5" />
-                AI Context Active
+              <span className="text-sm font-semibold tracking-tight text-white">NeoKanban</span>
+              <span className="hidden sm:inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full bg-slate-800 text-slate-400 border border-slate-700/60">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                MCP
               </span>
             </div>
           </Link>
 
-          {/* Navigation Links */}
-          <nav className="hidden md:flex items-center gap-1 text-sm font-medium">
+          {/* Navigation */}
+          <nav className="hidden md:flex items-center gap-1 text-xs font-medium">
             <Link
               href="/"
-              className={`px-3 py-1.5 rounded-lg flex items-center gap-2 transition-colors ${
+              className={`px-3 py-1.5 rounded-md flex items-center gap-1.5 transition-colors ${
                 pathname === '/'
-                  ? 'bg-slate-800/80 text-white'
+                  ? 'bg-slate-800 text-white font-semibold'
                   : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900'
               }`}
             >
-              <LayoutDashboard className="w-4 h-4" />
+              <LayoutGrid className="w-3.5 h-3.5" />
               <span>Boards</span>
             </Link>
             <Link
               href="/settings"
-              className={`px-3 py-1.5 rounded-lg flex items-center gap-2 transition-colors ${
+              className={`px-3 py-1.5 rounded-md flex items-center gap-1.5 transition-colors ${
                 pathname === '/settings'
-                  ? 'bg-slate-800/80 text-white'
+                  ? 'bg-slate-800 text-white font-semibold'
                   : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900'
               }`}
             >
-              <Settings className="w-4 h-4" />
-              <span>AI Tokens & Settings</span>
+              <Settings className="w-3.5 h-3.5" />
+              <span>Settings & Tokens</span>
             </Link>
           </nav>
         </div>
 
-        {/* User Actions */}
+        {/* User Info & Actions */}
         <div className="flex items-center gap-3">
           {user && (
-            <div className="flex items-center gap-3 pr-2 border-r border-slate-800">
+            <div className="flex items-center gap-2.5 pr-2 border-r border-slate-800">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={user.avatarUrl || 'https://api.dicebear.com/7.x/bottts/svg?seed=user'}
                 alt={user.name}
-                className="w-8 h-8 rounded-full border border-slate-700 bg-slate-800"
+                className="w-7 h-7 rounded-full bg-slate-800 border border-slate-700"
               />
-              <div className="hidden sm:block text-left">
-                <p className="text-xs font-semibold text-slate-200 leading-tight">{user.name}</p>
-                <p className="text-[10px] text-slate-400 leading-tight">{user.email}</p>
-              </div>
+              <span className="hidden sm:inline text-xs font-medium text-slate-300">
+                {user.name}
+              </span>
             </div>
           )}
 
           <button
             onClick={handleLogout}
-            className="p-2 text-slate-400 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors"
+            className="p-1.5 text-slate-400 hover:text-red-400 hover:bg-slate-900 rounded-md transition-colors"
             title="Sign Out"
           >
             <LogOut className="w-4 h-4" />
