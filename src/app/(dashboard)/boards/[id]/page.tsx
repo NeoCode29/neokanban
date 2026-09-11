@@ -4,10 +4,6 @@ import { useState, useEffect, useCallback, use } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   Plus,
-  Search,
-  ChevronDown,
-  LayoutGrid,
-  List,
   Star,
   Trash2,
   BookOpen,
@@ -135,8 +131,6 @@ export default function BoardPage({ params }: { params: Promise<{ id: string }> 
     }
   }
 
-  const [searchQuery, setSearchQuery] = useState('')
-  const [showSearchInput, setShowSearchInput] = useState(false)
   const [showMenu, setShowMenu] = useState(false)
 
   if (loading) {
@@ -150,20 +144,10 @@ export default function BoardPage({ params }: { params: Promise<{ id: string }> 
 
   if (!board) return null
 
-  // Filter columns and cards
-  const displayedColumns = board.columns
-    .filter((c) => (activeFilter === 'all' ? true : c.title.toLowerCase() === activeFilter.toLowerCase()))
-    .map((col) => ({
-      ...col,
-      cards: searchQuery.trim()
-        ? col.cards.filter(
-            (c) =>
-              c.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-              c.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-              c.tags.some((t) => t.toLowerCase().includes(searchQuery.toLowerCase()))
-          )
-        : col.cards,
-    }))
+  // Filter columns
+  const displayedColumns = board.columns.filter(
+    (c) => (activeFilter === 'all' ? true : c.title.toLowerCase() === activeFilter.toLowerCase())
+  )
 
   return (
     <div className="space-y-6">
@@ -224,8 +208,8 @@ export default function BoardPage({ params }: { params: Promise<{ id: string }> 
         </div>
       </div>
 
-      {/* 2. Controls & Filter Bar (Pill tabs on left, actions on right) */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-1">
+      {/* 2. Controls & Filter Bar (Pill tabs) */}
+      <div className="flex items-center gap-3 pb-1">
         {/* Left: Rounded Pill Filter Bar */}
         <div className="flex items-center gap-1 p-1 bg-[#eeeff2] rounded-xl w-fit border border-neutral-200/50">
           <button
@@ -272,64 +256,6 @@ export default function BoardPage({ params }: { params: Promise<{ id: string }> 
             <span>Project Context</span>
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
           </button>
-        </div>
-
-        {/* Right: Quick actions (Search, Sort dropdown, Layout icons) */}
-        <div className="flex items-center gap-2 self-end sm:self-auto">
-          {showSearchInput ? (
-            <div className="flex items-center gap-1 bg-white border border-neutral-200 rounded-lg px-2.5 py-1 shadow-xs">
-              <Search className="w-3.5 h-3.5 text-neutral-400" />
-              <input
-                autoFocus
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Filter tasks..."
-                className="text-xs text-neutral-800 placeholder-neutral-400 focus:outline-none w-28 sm:w-36"
-              />
-              <button
-                onClick={() => {
-                  setSearchQuery('')
-                  setShowSearchInput(false)
-                }}
-                className="text-[10px] text-neutral-400 hover:text-neutral-700"
-              >
-                ✕
-              </button>
-            </div>
-          ) : (
-            <button
-              onClick={() => setShowSearchInput(true)}
-              className="p-1.5 text-neutral-500 hover:text-neutral-800 hover:bg-neutral-100 rounded-lg transition-colors border border-neutral-200/80 bg-white shadow-xs"
-              title="Filter search"
-            >
-              <Search className="w-3.5 h-3.5" />
-            </button>
-          )}
-
-          <div className="flex items-center gap-1 px-2.5 py-1.5 bg-white border border-neutral-200/80 rounded-lg text-xs font-medium text-neutral-700 shadow-xs cursor-pointer hover:bg-neutral-50">
-            <span>Recently updated</span>
-            <ChevronDown className="w-3.5 h-3.5 text-neutral-400" />
-          </div>
-
-          <div className="flex items-center p-0.5 bg-neutral-100 rounded-lg border border-neutral-200/60">
-            <button
-              onClick={() => setActiveTab('board')}
-              className={`p-1 rounded-md transition-colors ${
-                activeTab === 'board' ? 'bg-white text-neutral-900 shadow-xs' : 'text-neutral-400 hover:text-neutral-700'
-              }`}
-              title="Kanban View"
-            >
-              <LayoutGrid className="w-3.5 h-3.5" />
-            </button>
-            <button
-              onClick={() => setActiveTab('board')}
-              className="p-1 rounded-md text-neutral-400 hover:text-neutral-700 transition-colors"
-              title="List View"
-            >
-              <List className="w-3.5 h-3.5" />
-            </button>
-          </div>
         </div>
       </div>
 
