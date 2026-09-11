@@ -65,7 +65,9 @@ async function main() {
   // 1. List tools
   const toolsResponse = await client.listTools()
   console.log(`\n📋 Tools Registered (${toolsResponse.tools.length}):`)
-  toolsResponse.tools.forEach((t) => console.log(`   - ${t.name}: ${t.description.slice(0, 60)}...`))
+  toolsResponse.tools.forEach((t) =>
+    console.log(`   - ${t.name}: ${(t.description || '').slice(0, 60)}...`)
+  )
 
   // 2. Call list_boards
   console.log('\n🔍 Calling list_boards...')
