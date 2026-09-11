@@ -2,6 +2,11 @@ import { PrismaClient } from '@prisma/client'
 
 const globalForPrisma = globalThis as unknown as { prisma: PrismaClient | undefined }
 
+// If cached prisma instance lacks new models (due to schema updates during dev), reinitialize
+if (globalForPrisma.prisma && !('contextDocument' in globalForPrisma.prisma)) {
+  globalForPrisma.prisma = undefined
+}
+
 export const prisma =
   globalForPrisma.prisma ??
   new PrismaClient({
