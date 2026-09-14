@@ -78,12 +78,25 @@ export default function BoardPage({ params }: { params: Promise<{ id: string }> 
   }
 
   const handleDeleteBoard = async () => {
-    if (!confirm('Are you sure you want to delete this board?')) return
+    if (!board?.isOwner) {
+      alert('Hanya pemilik (owner) proyek yang memiliki izin untuk menghapus board ini.')
+      return
+    }
+
+    const confirmMessage = `Apakah Anda yakin ingin menghapus board "${board.title}"?\n\nPERINGATAN: Semua kolom, kartu tugas, dan dokumen Living Context akan dihapus secara permanen. Tindakan ini tidak dapat dibatalkan.`
+    if (!confirm(confirmMessage)) return
+
     try {
       const res = await fetch(`/api/boards/${id}`, { method: 'DELETE' })
-      if (res.ok) router.push('/')
+      if (res.ok) {
+        router.push('/')
+      } else {
+        const data = await res.json()
+        alert(data.error || 'Gagal menghapus board')
+      }
     } catch (err) {
       console.error(err)
+      alert('Terjadi kesalahan saat menghapus board')
     }
   }
 
@@ -197,30 +210,37 @@ export default function BoardPage({ params }: { params: Promise<{ id: string }> 
             <Star className="w-4 h-4 fill-current" />
           </button>
 
-          {/* Board Options Menu */}
-          <div className="relative">
-            <button
-              onClick={() => setShowMenu(!showMenu)}
-              className="p-1 text-neutral-400 hover:text-neutral-700 hover:bg-neutral-100 rounded-md transition-colors"
-              title="Board options"
-            >
-              <Trash2 className="w-3.5 h-3.5" />
-            </button>
-            {showMenu && (
-              <div className="absolute left-0 mt-1 w-36 bg-white border border-neutral-200 rounded-xl shadow-lg p-1 z-30 animate-in fade-in">
-                <button
-                  onClick={() => {
-                    setShowMenu(false)
-                    handleDeleteBoard()
-                  }}
-                  className="w-full text-left px-2.5 py-1.5 text-xs text-red-600 hover:bg-red-50 rounded-lg flex items-center gap-1.5 transition-colors"
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                  <span>Delete board</span>
-                </button>
-              </div>
-            )}
-          </div>
+          {/* Owner Only: Board Options Menu */}
+          {board.isOwner ? (
+            <div className="relative">
+              <button
+                onClick={() => setShowMenu(!showMenu)}
+                className="p-1 text-neutral-400 hover:text-neutral-700 hover:bg-neutral-100 rounded-md transition-colors"
+                title="Board options (Owner only)"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+              </button>
+              {showMenu && (
+                <div className="absolute left-0 mt-1 w-36 bg-white border border-neutral-200 rounded-xl shadow-lg p-1 z-30 animate-in fade-in">
+                  <button
+                    onClick={() => {
+                      setShowMenu(false)
+                      handleDeleteBoard()
+                    }}
+                    className="w-full text-left px-2.5 py-1.5 text-xs text-red-600 hover:bg-red-50 rounded-lg flex items-center gap-1.5 transition-colors font-medium"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>Delete board</span>
+                  </button>
+                </div>
+              )}
+            </div>
+          ) : (
+            <span className="inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200/60">
+              <Users className="w-3 h-3" />
+              <span>Collaborator</span>
+            </span>
+          )}
         </div>
 
         {/* Right: Primary Action Buttons */}

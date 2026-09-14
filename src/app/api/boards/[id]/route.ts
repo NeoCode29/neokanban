@@ -115,11 +115,28 @@ export async function DELETE(
     return NextResponse.json({ error: 'Board not found' }, { status: 404 })
   }
 
+  // Security Guard: Only the board owner can delete this board
   if (!access.isOwner) {
-    return NextResponse.json({ error: 'Only the board owner can delete this board' }, { status: 403 })
+    return NextResponse.json(
+      { error: 'Hanya pemilik (owner) proyek yang memiliki izin untuk menghapus board ini' },
+      { status: 403 }
+    )
   }
 
   try {
+    // Double-verify at database record level before deletion
+    const existingBoard = await prisma.board.findUnique({
+      where: { id },
+      select: { id: true, ownerId: true },
+    })
+
+    if (!existingBoard || existingBoard.ownerId !== user.id) {
+      return NextResponse.json(
+        { error: 'Hanya pemilik (owner) proyek yang memiliki izin untuk menghapus board ini' },
+        { status: 403 }
+      )
+    }
+
     await prisma.board.delete({ where: { id } })
     return NextResponse.json({ message: 'Board deleted successfully' })
   } catch (error: any) {
