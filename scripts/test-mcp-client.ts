@@ -49,7 +49,7 @@ async function main() {
     command: 'node',
     args: [serverScript],
     env: {
-      ...process.env,
+      NEOKANBAN_API_URL: 'http://localhost:3000',
       NEOKANBAN_PAT: rawToken,
     },
   })

@@ -1,117 +1,71 @@
 "use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
 Object.defineProperty(exports, "__esModule", { value: true });
 const mcp_js_1 = require("@modelcontextprotocol/sdk/server/mcp.js");
 const stdio_js_1 = require("@modelcontextprotocol/sdk/server/stdio.js");
 const zod_1 = require("zod");
-const client_1 = require("@prisma/client");
-const crypto_1 = __importDefault(require("crypto"));
-const prisma = new client_1.PrismaClient();
-function hashToken(rawToken) {
-    return crypto_1.default.createHash('sha256').update(rawToken).digest('hex');
-}
-async function authenticateUser(tokenOverride) {
-    const token = tokenOverride || process.env.NEOKANBAN_PAT;
+const API_BASE_URL = (process.env.NEOKANBAN_API_URL || 'http://localhost:3000').replace(/\/$/, '');
+/**
+ * Universal HTTP helper to communicate with the NeoKanban REST API using Bearer PAT tokens.
+ * Eliminates the need for direct database credentials (DATABASE_URL) in AI clients.
+ */
+async function apiRequest(path, options = {}) {
+    const token = options.token || process.env.NEOKANBAN_PAT;
     if (!token) {
         throw new Error('Authentication failed: NEOKANBAN_PAT environment variable or token parameter is missing. Generate a token in NeoKanban Settings.');
     }
-    const tokenHash = hashToken(token);
-    const record = await prisma.personalAccessToken.findUnique({
-        where: { tokenHash },
-        include: {
-            user: {
-                select: {
-                    id: true,
-                    email: true,
-                    name: true,
-                },
-            },
-        },
-    });
-    if (!record || !record.user) {
-        throw new Error('Authentication failed: Invalid or revoked NeoKanban Personal Access Token.');
+    const url = `${API_BASE_URL}${path.startsWith('/') ? path : '/' + path}`;
+    const headers = {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+    };
+    try {
+        const res = await fetch(url, {
+            method: options.method || 'GET',
+            headers,
+            body: options.body ? JSON.stringify(options.body) : undefined,
+        });
+        if (!res.ok) {
+            let errorMsg = `API Error ${res.status}: ${res.statusText}`;
+            try {
+                const errData = await res.json();
+                if (errData?.error)
+                    errorMsg = errData.error;
+            }
+            catch {
+                const text = await res.text();
+                if (text)
+                    errorMsg = text;
+            }
+            throw new Error(errorMsg);
+        }
+        return res.json();
     }
-    // Update lastUsedAt asynchronously
-    prisma.personalAccessToken
-        .update({
-        where: { id: record.id },
-        data: { lastUsedAt: new Date() },
-    })
-        .catch((err) => console.error('Error updating PAT lastUsedAt:', err));
-    return record.user;
-}
-/**
- * Validates that a user has access to a board (either as Owner or Collaborator).
- */
-async function verifyBoardAccess(boardId, userId) {
-    const board = await prisma.board.findUnique({
-        where: { id: boardId },
-        include: {
-            owner: { select: { id: true, name: true, email: true } },
-            members: {
-                include: {
-                    user: { select: { id: true, name: true, email: true, avatarUrl: true } },
-                },
-            },
-            contextDocuments: {
-                orderBy: [{ order: 'asc' }, { createdAt: 'asc' }],
-            },
-            projectContext: true,
-            columns: {
-                orderBy: { order: 'asc' },
-            },
-        },
-    });
-    if (!board)
-        return null;
-    const isOwner = board.ownerId === userId;
-    const isMember = board.members.some((m) => m.userId === userId);
-    if (!isOwner && !isMember)
-        return null;
-    return { board, isOwner };
+    catch (err) {
+        if (err.cause?.code === 'ECONNREFUSED' || err.message?.includes('fetch failed')) {
+            throw new Error(`Failed to connect to NeoKanban server at "${API_BASE_URL}". Ensure the server is running and NEOKANBAN_API_URL is correct.`);
+        }
+        throw err;
+    }
 }
 const server = new mcp_js_1.McpServer({
     name: 'NeoKanban AI MCP Server',
-    version: '1.2.0',
+    version: '2.0.0',
 });
 // 1. Tool: list_boards
 server.tool('list_boards', 'Lists all project boards accessible by the authenticated user (both owned and shared boards) with task counts and collaboration status.', {
     token: zod_1.z.string().optional().describe('Optional Personal Access Token override'),
 }, async ({ token }) => {
-    const user = await authenticateUser(token);
-    const boards = await prisma.board.findMany({
-        where: {
-            OR: [
-                { ownerId: user.id },
-                { members: { some: { userId: user.id } } },
-            ],
-        },
-        include: {
-            owner: { select: { id: true, name: true, email: true } },
-            members: { select: { id: true, role: true } },
-            columns: {
-                select: {
-                    id: true,
-                    title: true,
-                    _count: { select: { cards: true } },
-                },
-                orderBy: { order: 'asc' },
-            },
-        },
-        orderBy: [{ isFavorite: 'desc' }, { updatedAt: 'desc' }],
-    });
-    const result = boards.map((b) => ({
+    const data = await apiRequest('/api/boards', { token });
+    const result = data.boards.map((b) => ({
         id: b.id,
         title: b.title,
         description: b.description,
         isFavorite: b.isFavorite,
-        isOwner: b.ownerId === user.id,
-        ownerName: b.owner.name || b.owner.email,
-        memberCount: b.members.length,
-        columns: b.columns.map((c) => `${c.title} (${c._count.cards} cards)`),
-        totalCards: b.columns.reduce((sum, col) => sum + col._count.cards, 0),
+        isOwner: b.isOwner,
+        ownerName: b.ownerName,
+        memberCount: b.memberCount || 0,
+        columns: b.columns.map((c) => `${c.title} (${c._count?.cards || 0} cards)`),
+        totalCards: b.cardCount,
     }));
     return {
         content: [{ type: 'text', text: JSON.stringify(result, null, 2) }],
@@ -122,20 +76,15 @@ server.tool('list_board_members', 'Lists the owner and all team collaborators fo
     boardId: zod_1.z.string().describe('The ID of the board'),
     token: zod_1.z.string().optional().describe('Optional Personal Access Token override'),
 }, async ({ boardId, token }) => {
-    const user = await authenticateUser(token);
-    const access = await verifyBoardAccess(boardId, user.id);
-    if (!access) {
-        throw new Error(`Board with ID ${boardId} not found or unauthorized.`);
-    }
-    const { board } = access;
+    const data = await apiRequest(`/api/boards/${boardId}/members`, { token });
     const membersList = [
         {
-            id: board.owner.id,
-            name: board.owner.name,
-            email: board.owner.email,
+            id: data.owner.id,
+            name: data.owner.name,
+            email: data.owner.email,
             role: 'OWNER',
         },
-        ...board.members.map((m) => ({
+        ...data.members.map((m) => ({
             id: m.user.id,
             name: m.user.name,
             email: m.user.email,
@@ -147,9 +96,8 @@ server.tool('list_board_members', 'Lists the owner and all team collaborators fo
             {
                 type: 'text',
                 text: JSON.stringify({
-                    boardId: board.id,
-                    boardTitle: board.title,
-                    isOwner: access.isOwner,
+                    boardId,
+                    isOwner: data.isOwner,
                     members: membersList,
                 }, null, 2),
             },
@@ -161,20 +109,15 @@ server.tool('list_board_context_files', 'Lists all living context files/document
     boardId: zod_1.z.string().describe('The ID of the board'),
     token: zod_1.z.string().optional().describe('Optional Personal Access Token override'),
 }, async ({ boardId, token }) => {
-    const user = await authenticateUser(token);
-    const access = await verifyBoardAccess(boardId, user.id);
-    if (!access) {
-        throw new Error(`Board with ID ${boardId} not found or unauthorized.`);
-    }
-    const { board } = access;
+    const data = await apiRequest(`/api/boards/${boardId}/context`, { token });
     return {
         content: [
             {
                 type: 'text',
                 text: JSON.stringify({
-                    boardId: board.id,
-                    boardTitle: board.title,
-                    files: board.contextDocuments.map((d) => ({
+                    boardId,
+                    boardTitle: data.boardTitle,
+                    files: data.documents.map((d) => ({
                         id: d.id,
                         title: d.title,
                         fileName: d.fileName,
@@ -192,18 +135,13 @@ server.tool('get_board_context', 'Retrieves the living project context files for
     fileName: zod_1.z.string().optional().describe('Optional file name, e.g. "guidelines.md" or "architecture.md"'),
     token: zod_1.z.string().optional().describe('Optional Personal Access Token override'),
 }, async ({ boardId, fileName, token }) => {
-    const user = await authenticateUser(token);
-    const access = await verifyBoardAccess(boardId, user.id);
-    if (!access) {
-        throw new Error(`Board with ID ${boardId} not found or unauthorized.`);
-    }
-    const { board } = access;
+    const data = await apiRequest(`/api/boards/${boardId}/context`, { token });
     // Specific file requested
     if (fileName && fileName.trim()) {
         const cleanName = fileName.trim().toLowerCase();
-        const doc = board.contextDocuments.find((d) => d.fileName.toLowerCase() === cleanName || d.title.toLowerCase() === cleanName);
+        const doc = data.documents.find((d) => d.fileName.toLowerCase() === cleanName || d.title.toLowerCase() === cleanName);
         if (!doc) {
-            throw new Error(`Context file "${fileName}" not found in board "${board.title}". Available files: ${board.contextDocuments
+            throw new Error(`Context file "${fileName}" not found in board "${data.boardTitle}". Available files: ${data.documents
                 .map((d) => d.fileName)
                 .join(', ')}`);
         }
@@ -217,101 +155,46 @@ server.tool('get_board_context', 'Retrieves the living project context files for
         };
     }
     // Return complete context bundle
-    if (board.contextDocuments.length > 0) {
-        const fileListHeader = board.contextDocuments
+    if (data.documents.length > 0) {
+        const fileListHeader = data.documents
             .map((d) => `- \`${d.fileName}\`: ${d.title}`)
             .join('\n');
-        const fullFilesContent = board.contextDocuments
+        const fullFilesContent = data.documents
             .map((d) => `## 📄 ${d.title} (\`${d.fileName}\`)\n\n${d.content}\n\n---`)
             .join('\n\n');
-        const bundle = `# Living Project Context for: "${board.title}"\n\n### Available Context Files:\n${fileListHeader}\n\n---\n\n${fullFilesContent}`;
+        const bundle = `# Living Project Context for: "${data.boardTitle}"\n\n### Available Context Files:\n${fileListHeader}\n\n---\n\n${fullFilesContent}`;
         return {
             content: [{ type: 'text', text: bundle }],
         };
     }
-    const legacy = board.projectContext || {
-        guidelinesMarkdown: 'No guidelines defined.',
-        techStackMarkdown: 'No tech stack specified.',
-        conventionsMarkdown: 'No conventions specified.',
-        messagingStandards: 'No message standards specified.',
-    };
-    const fallbackContext = `# Living Project Context for: "${board.title}"\n\n## 1. Core Guidelines\n${legacy.guidelinesMarkdown}\n\n## 2. Tech Stack\n${legacy.techStackMarkdown}\n\n## 3. Conventions\n${legacy.conventionsMarkdown}\n\n## 4. Message Standards\n${legacy.messagingStandards}`;
     return {
-        content: [{ type: 'text', text: fallbackContext }],
+        content: [{ type: 'text', text: `No context documents found for board "${data.boardTitle}".` }],
     };
 });
 // 5. Tool: update_board_context
 server.tool('update_board_context', 'Creates or updates a living project context file on a board (e.g. fileName: "guidelines.md", content: "..."). Accessible by board owners and collaborators.', {
     boardId: zod_1.z.string().describe('The ID of the board'),
-    fileName: zod_1.z.string().optional().describe('File name to create or update (e.g. "guidelines.md", "architecture.md", "api-spec.json")'),
+    fileName: zod_1.z.string().describe('File name to create or update (e.g. "guidelines.md", "architecture.md", "api-spec.json")'),
     content: zod_1.z.string().optional().describe('The updated content for the file'),
     title: zod_1.z.string().optional().describe('Optional human-readable title for the file'),
-    guidelinesMarkdown: zod_1.z.string().optional().describe('Legacy: Updated coding guidelines markdown'),
-    techStackMarkdown: zod_1.z.string().optional().describe('Legacy: Updated tech stack markdown'),
-    conventionsMarkdown: zod_1.z.string().optional().describe('Legacy: Updated conventions markdown'),
-    messagingStandards: zod_1.z.string().optional().describe('Legacy: Updated messaging standards markdown'),
     token: zod_1.z.string().optional().describe('Optional Personal Access Token override'),
-}, async ({ boardId, fileName, content, title, guidelinesMarkdown, techStackMarkdown, conventionsMarkdown, messagingStandards, token, }) => {
-    const user = await authenticateUser(token);
-    const access = await verifyBoardAccess(boardId, user.id);
-    if (!access) {
-        throw new Error(`Board with ID ${boardId} not found or unauthorized.`);
-    }
-    const { board } = access;
-    // Modern multi-file update
-    if (fileName && fileName.trim()) {
-        const cleanFileName = fileName.trim().toLowerCase().replace(/[^a-z0-9_.-]/g, '-');
-        const fileContent = content || '';
-        const fileTitle = title?.trim() || cleanFileName;
-        const updatedDoc = await prisma.contextDocument.upsert({
-            where: {
-                boardId_fileName: {
-                    boardId,
-                    fileName: cleanFileName,
-                },
-            },
-            update: {
-                content: fileContent,
-                ...(title ? { title: fileTitle } : {}),
-            },
-            create: {
-                boardId,
-                fileName: cleanFileName,
-                title: fileTitle,
-                content: fileContent,
-            },
-        });
-        return {
-            content: [
-                {
-                    type: 'text',
-                    text: `Context file "${updatedDoc.fileName}" (${updatedDoc.title}) on board "${board.title}" has been successfully saved at ${updatedDoc.updatedAt.toISOString()}.`,
-                },
-            ],
-        };
-    }
-    // Legacy updates
-    const updated = await prisma.projectContext.upsert({
-        where: { boardId },
-        update: {
-            ...(guidelinesMarkdown !== undefined ? { guidelinesMarkdown } : {}),
-            ...(techStackMarkdown !== undefined ? { techStackMarkdown } : {}),
-            ...(conventionsMarkdown !== undefined ? { conventionsMarkdown } : {}),
-            ...(messagingStandards !== undefined ? { messagingStandards } : {}),
+}, async ({ boardId, fileName, content, title, token }) => {
+    const cleanFileName = fileName.trim().toLowerCase().replace(/[^a-z0-9_.-]/g, '-');
+    const fileTitle = title?.trim() || cleanFileName;
+    const data = await apiRequest(`/api/boards/${boardId}/context`, {
+        method: 'POST',
+        body: {
+            fileName: cleanFileName,
+            title: fileTitle,
+            content: content || '',
         },
-        create: {
-            boardId,
-            guidelinesMarkdown: guidelinesMarkdown || '',
-            techStackMarkdown: techStackMarkdown || '',
-            conventionsMarkdown: conventionsMarkdown || '',
-            messagingStandards: messagingStandards || '',
-        },
+        token,
     });
     return {
         content: [
             {
                 type: 'text',
-                text: `Project context for board "${board.title}" has been updated successfully at ${updated.updatedAt.toISOString()}.`,
+                text: `Context file "${data.document.fileName}" (${data.document.title}) has been successfully saved.`,
             },
         ],
     };
@@ -322,44 +205,23 @@ server.tool('get_board_cards', 'Gets all columns and task cards from a board wit
     columnTitle: zod_1.z.string().optional().describe('Optional column name filter, e.g. "In Progress"'),
     token: zod_1.z.string().optional().describe('Optional Personal Access Token override'),
 }, async ({ boardId, columnTitle, token }) => {
-    const user = await authenticateUser(token);
-    const access = await verifyBoardAccess(boardId, user.id);
-    if (!access) {
-        throw new Error(`Board with ID ${boardId} not found or unauthorized.`);
+    const data = await apiRequest(`/api/boards/${boardId}`, { token });
+    let columns = data.board.columns || [];
+    if (columnTitle) {
+        columns = columns.filter((c) => c.title.toLowerCase() === columnTitle.toLowerCase().trim());
     }
-    const columns = await prisma.column.findMany({
-        where: {
-            boardId,
-            ...(columnTitle ? { title: { equals: columnTitle, mode: 'insensitive' } } : {}),
-        },
-        include: {
-            cards: {
-                include: {
-                    assignees: {
-                        include: {
-                            user: { select: { id: true, name: true, email: true } },
-                        },
-                    },
-                    checklists: { select: { id: true, title: true, isCompleted: true } },
-                    _count: { select: { comments: true } },
-                },
-                orderBy: { order: 'asc' },
-            },
-        },
-        orderBy: { order: 'asc' },
-    });
     const result = columns.map((col) => ({
         columnId: col.id,
         columnTitle: col.title,
-        cards: col.cards.map((card) => ({
+        cards: (col.cards || []).map((card) => ({
             id: card.id,
             title: card.title,
             priority: card.priority,
             tags: card.tags,
-            assignees: card.assignees.map((a) => a.user.name || a.user.email),
-            checklists: `${card.checklists.filter((c) => c.isCompleted).length}/${card.checklists.length} completed`,
-            commentCount: card._count.comments,
-            descriptionPreview: card.description.slice(0, 120),
+            assignees: (card.assignees || []).map((a) => a.user?.name || a.user?.email),
+            checklists: `${(card.checklists || []).filter((c) => c.isCompleted).length}/${(card.checklists || []).length} completed`,
+            commentCount: card._count?.comments || 0,
+            descriptionPreview: card.description?.slice(0, 120) || '',
         })),
     }));
     return {
@@ -371,46 +233,28 @@ server.tool('get_card_details', 'Retrieves full detailed information for a speci
     cardId: zod_1.z.string().describe('The ID of the card'),
     token: zod_1.z.string().optional().describe('Optional Personal Access Token override'),
 }, async ({ cardId, token }) => {
-    const user = await authenticateUser(token);
-    const card = await prisma.card.findUnique({
-        where: { id: cardId },
-        include: {
-            column: { include: { board: true } },
-            assignees: {
-                include: {
-                    user: { select: { id: true, name: true, email: true } },
-                },
-            },
-            checklists: { orderBy: { order: 'asc' } },
-            comments: { orderBy: { createdAt: 'desc' } },
-        },
-    });
-    if (!card)
-        throw new Error(`Card with ID ${cardId} not found.`);
-    const access = await verifyBoardAccess(card.column.boardId, user.id);
-    if (!access) {
-        throw new Error(`Card with ID ${cardId} not found or unauthorized.`);
-    }
+    const data = await apiRequest(`/api/cards/${cardId}`, { token });
+    const card = data.card;
     const details = {
         id: card.id,
-        board: { id: card.column.board.id, title: card.column.board.title },
-        column: { id: card.column.id, title: card.column.title },
+        board: { id: card.column?.board?.id, title: card.column?.board?.title },
+        column: { id: card.column?.id, title: card.column?.title },
         title: card.title,
         description: card.description,
         priority: card.priority,
         tags: card.tags,
         dueDate: card.dueDate,
-        assignees: card.assignees.map((a) => ({
-            id: a.user.id,
-            name: a.user.name,
-            email: a.user.email,
+        assignees: (card.assignees || []).map((a) => ({
+            id: a.user?.id,
+            name: a.user?.name,
+            email: a.user?.email,
         })),
-        checklists: card.checklists.map((c) => ({
+        checklists: (card.checklists || []).map((c) => ({
             id: c.id,
             title: c.title,
             isCompleted: c.isCompleted,
         })),
-        comments: card.comments.map((cm) => ({
+        comments: (card.comments || []).map((cm) => ({
             id: cm.id,
             authorName: cm.authorName,
             isAiGenerated: cm.isAiGenerated,
@@ -433,49 +277,57 @@ server.tool('create_card', 'Creates a new task card in a specified column of a b
     assignees: zod_1.z.array(zod_1.z.string()).optional().describe('Optional list of member emails or names to assign to this card'),
     token: zod_1.z.string().optional().describe('Optional Personal Access Token override'),
 }, async ({ boardId, columnTitle, title, description, priority, tags, assignees, token }) => {
-    const user = await authenticateUser(token);
-    const access = await verifyBoardAccess(boardId, user.id);
-    if (!access) {
-        throw new Error(`Board with ID ${boardId} not found or unauthorized.`);
-    }
-    const { board } = access;
-    const targetCol = board.columns.find((c) => c.title.toLowerCase() === columnTitle.toLowerCase().trim());
+    // 1. Fetch board to get target column ID
+    const boardData = await apiRequest(`/api/boards/${boardId}`, { token });
+    const targetCol = boardData.board.columns?.find((c) => c.title.toLowerCase() === columnTitle.toLowerCase().trim());
     if (!targetCol) {
-        const available = board.columns.map((c) => `"${c.title}"`).join(', ');
-        throw new Error(`Column "${columnTitle}" not found in board "${board.title}". Available columns: ${available}`);
+        const available = (boardData.board.columns || []).map((c) => `"${c.title}"`).join(', ');
+        throw new Error(`Column "${columnTitle}" not found in board "${boardData.board.title}". Available columns: ${available}`);
     }
-    const maxOrder = await prisma.card.findFirst({
-        where: { columnId: targetCol.id },
-        orderBy: { order: 'desc' },
-        select: { order: true },
-    });
-    const order = maxOrder ? maxOrder.order + 1 : 0;
-    const card = await prisma.card.create({
-        data: {
+    // 2. Create card via API
+    const createData = await apiRequest('/api/cards', {
+        method: 'POST',
+        body: {
             columnId: targetCol.id,
             title: title.trim(),
-            description: description?.trim() || '',
-            priority: priority || client_1.Priority.MEDIUM,
-            tags: tags || [],
-            order,
         },
+        token,
     });
-    // Assign members if specified
+    const card = createData.card;
+    // 3. Update description, priority, tags if provided
+    if (description || priority || tags) {
+        await apiRequest(`/api/cards/${card.id}`, {
+            method: 'PUT',
+            body: {
+                description: description?.trim() || '',
+                priority: priority || 'MEDIUM',
+                tags: tags || [],
+            },
+            token,
+        });
+    }
+    // 4. Assign members if specified
     const assignedNames = [];
     if (assignees && assignees.length > 0) {
-        const allMembers = [board.owner, ...board.members.map((m) => m.user)];
+        const membersData = await apiRequest(`/api/boards/${boardId}/members`, { token });
+        const allMembers = [membersData.owner, ...membersData.members.map((m) => m.user)];
         for (const query of assignees) {
             const clean = query.trim().toLowerCase();
             const matched = allMembers.find((m) => m.id === query ||
                 m.email.toLowerCase() === clean ||
                 (m.name && m.name.toLowerCase().includes(clean)));
             if (matched) {
-                await prisma.cardAssignee.upsert({
-                    where: { cardId_userId: { cardId: card.id, userId: matched.id } },
-                    create: { cardId: card.id, userId: matched.id },
-                    update: {},
-                });
-                assignedNames.push(matched.name || matched.email);
+                try {
+                    await apiRequest(`/api/cards/${card.id}/assignees`, {
+                        method: 'POST',
+                        body: { userId: matched.id },
+                        token,
+                    });
+                    assignedNames.push(matched.name || matched.email);
+                }
+                catch (e) {
+                    console.error(`Failed to assign member ${matched.name}:`, e);
+                }
             }
         }
     }
@@ -484,13 +336,13 @@ server.tool('create_card', 'Creates a new task card in a specified column of a b
         content: [
             {
                 type: 'text',
-                text: `Card created successfully in column "${targetCol.title}":\nID: ${card.id}\nTitle: ${card.title}\nPriority: ${card.priority}${assignedSummary}`,
+                text: `Card created successfully in column "${targetCol.title}":\nID: ${card.id}\nTitle: ${card.title}\nPriority: ${priority || 'MEDIUM'}${assignedSummary}`,
             },
         ],
     };
 });
 // 9. Tool: update_card
-server.tool('update_card', 'Updates a task card, including title, description, priority, moving between columns, or updating assigned members.', {
+server.tool('update_card', 'Updates a task card, including title, description, priority, or moving between columns.', {
     cardId: zod_1.z.string().describe('The ID of the card to update'),
     title: zod_1.z.string().optional().describe('New title of the card'),
     description: zod_1.z.string().optional().describe('New markdown description'),
@@ -498,43 +350,41 @@ server.tool('update_card', 'Updates a task card, including title, description, p
     priority: zod_1.z.enum(['LOW', 'MEDIUM', 'HIGH', 'URGENT']).optional().describe('New priority'),
     tags: zod_1.z.array(zod_1.z.string()).optional().describe('Updated tag list'),
     token: zod_1.z.string().optional().describe('Optional Personal Access Token override'),
-}, async ({ cardId, title, description, targetColumnTitle, priority, tags, token, }) => {
-    const user = await authenticateUser(token);
-    const card = await prisma.card.findUnique({
-        where: { id: cardId },
-        include: { column: { include: { board: { include: { columns: true } } } } },
-    });
-    if (!card)
-        throw new Error(`Card with ID ${cardId} not found.`);
-    const access = await verifyBoardAccess(card.column.boardId, user.id);
-    if (!access) {
-        throw new Error(`Card with ID ${cardId} not found or unauthorized.`);
-    }
-    let nextColumnId = card.columnId;
+}, async ({ cardId, title, description, targetColumnTitle, priority, tags, token }) => {
+    // 1. Move to column if requested
     if (targetColumnTitle) {
-        const match = card.column.board.columns.find((c) => c.title.toLowerCase() === targetColumnTitle.toLowerCase().trim());
-        if (!match) {
-            const available = card.column.board.columns.map((c) => `"${c.title}"`).join(', ');
-            throw new Error(`Target column "${targetColumnTitle}" not found. Available: ${available}`);
+        const cardData = await apiRequest(`/api/cards/${cardId}`, { token });
+        const boardId = cardData.card.column?.boardId || cardData.card.column?.board?.id;
+        if (boardId) {
+            const boardData = await apiRequest(`/api/boards/${boardId}`, { token });
+            const targetCol = boardData.board.columns?.find((c) => c.title.toLowerCase() === targetColumnTitle.toLowerCase().trim());
+            if (!targetCol) {
+                const available = (boardData.board.columns || []).map((c) => `"${c.title}"`).join(', ');
+                throw new Error(`Target column "${targetColumnTitle}" not found. Available: ${available}`);
+            }
+            await apiRequest(`/api/cards/${cardId}/move`, {
+                method: 'POST',
+                body: { targetColumnId: targetCol.id, targetOrder: 0 },
+                token,
+            });
         }
-        nextColumnId = match.id;
     }
-    const updated = await prisma.card.update({
-        where: { id: cardId },
-        data: {
+    // 2. Update metadata
+    const updateData = await apiRequest(`/api/cards/${cardId}`, {
+        method: 'PUT',
+        body: {
             ...(title !== undefined ? { title: title.trim() } : {}),
             ...(description !== undefined ? { description: description.trim() } : {}),
-            ...(priority !== undefined ? { priority: priority } : {}),
+            ...(priority !== undefined ? { priority } : {}),
             ...(tags !== undefined ? { tags } : {}),
-            ...(nextColumnId !== card.columnId ? { columnId: nextColumnId } : {}),
         },
-        include: { column: true },
+        token,
     });
     return {
         content: [
             {
                 type: 'text',
-                text: `Card "${updated.title}" (ID: ${updated.id}) updated successfully. Current column: "${updated.column.title}".`,
+                text: `Card "${updateData.card.title}" (ID: ${updateData.card.id}) updated successfully.`,
             },
         ],
     };
@@ -545,56 +395,28 @@ server.tool('assign_card_member', 'Assigns/mentions a team member on a card by u
     member: zod_1.z.string().describe('Email, name, or user ID of the board member to assign'),
     token: zod_1.z.string().optional().describe('Optional Personal Access Token override'),
 }, async ({ cardId, member, token }) => {
-    const user = await authenticateUser(token);
-    const card = await prisma.card.findUnique({
-        where: { id: cardId },
-        include: {
-            column: {
-                include: {
-                    board: {
-                        include: {
-                            owner: true,
-                            members: { include: { user: true } },
-                        },
-                    },
-                },
-            },
-        },
-    });
-    if (!card)
-        throw new Error(`Card with ID ${cardId} not found.`);
-    const access = await verifyBoardAccess(card.column.boardId, user.id);
-    if (!access) {
-        throw new Error(`Access denied to board "${card.column.board.title}".`);
-    }
-    const board = card.column.board;
+    const cardData = await apiRequest(`/api/cards/${cardId}`, { token });
+    const boardId = cardData.card.column?.boardId || cardData.card.column?.board?.id;
+    const membersData = await apiRequest(`/api/boards/${boardId}/members`, { token });
     const cleanQuery = member.trim().toLowerCase();
-    const candidates = [board.owner, ...board.members.map((m) => m.user)];
-    const matched = candidates.find((c) => c.id === member ||
+    const allMembers = [membersData.owner, ...membersData.members.map((m) => m.user)];
+    const matched = allMembers.find((c) => c.id === member ||
         c.email.toLowerCase() === cleanQuery ||
         (c.name && c.name.toLowerCase().includes(cleanQuery)));
     if (!matched) {
-        const available = candidates.map((c) => `${c.name} (${c.email})`).join(', ');
+        const available = allMembers.map((c) => `${c.name} (${c.email})`).join(', ');
         throw new Error(`Member "${member}" not found in board members. Available members: ${available}`);
     }
-    await prisma.cardAssignee.upsert({
-        where: {
-            cardId_userId: {
-                cardId,
-                userId: matched.id,
-            },
-        },
-        create: {
-            cardId,
-            userId: matched.id,
-        },
-        update: {},
+    await apiRequest(`/api/cards/${cardId}/assignees`, {
+        method: 'POST',
+        body: { userId: matched.id },
+        token,
     });
     return {
         content: [
             {
                 type: 'text',
-                text: `Successfully assigned ${matched.name || matched.email} to card "${card.title}".`,
+                text: `Successfully assigned ${matched.name || matched.email} to card "${cardData.card.title}".`,
             },
         ],
     };
@@ -605,45 +427,27 @@ server.tool('unassign_card_member', 'Removes an assigned member from a card by u
     member: zod_1.z.string().describe('Email, name, or user ID of the board member to unassign'),
     token: zod_1.z.string().optional().describe('Optional Personal Access Token override'),
 }, async ({ cardId, member, token }) => {
-    const user = await authenticateUser(token);
-    const card = await prisma.card.findUnique({
-        where: { id: cardId },
-        include: {
-            column: {
-                include: {
-                    board: {
-                        include: {
-                            owner: true,
-                            members: { include: { user: true } },
-                        },
-                    },
-                },
-            },
-            assignees: { include: { user: true } },
-        },
-    });
-    if (!card)
-        throw new Error(`Card with ID ${cardId} not found.`);
-    const access = await verifyBoardAccess(card.column.boardId, user.id);
-    if (!access) {
-        throw new Error(`Access denied to board "${card.column.board.title}".`);
-    }
+    const cardData = await apiRequest(`/api/cards/${cardId}`, { token });
     const cleanQuery = member.trim().toLowerCase();
-    const targetAssignee = card.assignees.find((a) => a.userId === member ||
-        a.user.email.toLowerCase() === cleanQuery ||
-        (a.user.name && a.user.name.toLowerCase().includes(cleanQuery)));
+    const targetAssignee = (cardData.card.assignees || []).find((a) => a.userId === member ||
+        a.user?.id === member ||
+        a.user?.email.toLowerCase() === cleanQuery ||
+        (a.user?.name && a.user?.name.toLowerCase().includes(cleanQuery)));
     if (!targetAssignee) {
-        const current = card.assignees.map((a) => `${a.user.name} (${a.user.email})`).join(', ');
+        const current = (cardData.card.assignees || [])
+            .map((a) => `${a.user?.name} (${a.user?.email})`)
+            .join(', ');
         throw new Error(`Member "${member}" is not assigned to this card. Current assignees: ${current || 'None'}`);
     }
-    await prisma.cardAssignee.delete({
-        where: { id: targetAssignee.id },
+    await apiRequest(`/api/cards/${cardId}/assignees/${targetAssignee.userId || targetAssignee.user.id}`, {
+        method: 'DELETE',
+        token,
     });
     return {
         content: [
             {
                 type: 'text',
-                text: `Successfully removed ${targetAssignee.user.name || targetAssignee.user.email} from card "${card.title}".`,
+                text: `Successfully removed ${targetAssignee.user?.name || targetAssignee.user?.email} from card "${cardData.card.title}".`,
             },
         ],
     };
@@ -655,30 +459,20 @@ server.tool('add_card_comment', 'Adds a comment or execution status log to a tas
     authorName: zod_1.z.string().optional().describe('Name of the AI Assistant, e.g. "Claude (via MCP)"'),
     token: zod_1.z.string().optional().describe('Optional Personal Access Token override'),
 }, async ({ cardId, content, authorName, token }) => {
-    const user = await authenticateUser(token);
-    const card = await prisma.card.findUnique({
-        where: { id: cardId },
-        include: { column: { include: { board: true } } },
-    });
-    if (!card)
-        throw new Error(`Card with ID ${cardId} not found.`);
-    const access = await verifyBoardAccess(card.column.boardId, user.id);
-    if (!access) {
-        throw new Error(`Card with ID ${cardId} not found or unauthorized.`);
-    }
-    const comment = await prisma.comment.create({
-        data: {
-            cardId,
+    const commentData = await apiRequest(`/api/cards/${cardId}/comments`, {
+        method: 'POST',
+        body: {
+            content: content.trim(),
             authorName: authorName?.trim() || 'AI Assistant (via MCP)',
             isAiGenerated: true,
-            content: content.trim(),
         },
+        token,
     });
     return {
         content: [
             {
                 type: 'text',
-                text: `Comment posted to card "${card.title}" successfully (ID: ${comment.id}).`,
+                text: `Comment posted successfully (ID: ${commentData.comment.id}).`,
             },
         ],
     };
@@ -692,47 +486,33 @@ server.tool('manage_checklist', 'Manages subtasks or acceptance criteria items o
     isCompleted: zod_1.z.boolean().optional().describe('The completed boolean state (used for "toggle")'),
     token: zod_1.z.string().optional().describe('Optional Personal Access Token override'),
 }, async ({ cardId, action, title, itemId, isCompleted, token }) => {
-    const user = await authenticateUser(token);
-    const card = await prisma.card.findUnique({
-        where: { id: cardId },
-        include: { column: { include: { board: true } } },
-    });
-    if (!card)
-        throw new Error(`Card with ID ${cardId} not found.`);
-    const access = await verifyBoardAccess(card.column.boardId, user.id);
-    if (!access) {
-        throw new Error(`Card with ID ${cardId} not found or unauthorized.`);
-    }
     if (action === 'add') {
         if (!title?.trim())
             throw new Error('title is required for "add" action');
-        const maxOrder = await prisma.checklistItem.findFirst({
-            where: { cardId },
-            orderBy: { order: 'desc' },
-            select: { order: true },
-        });
-        const order = maxOrder ? maxOrder.order + 1 : 0;
-        const item = await prisma.checklistItem.create({
-            data: { cardId, title: title.trim(), order },
+        const data = await apiRequest(`/api/cards/${cardId}/checklists`, {
+            method: 'POST',
+            body: { title: title.trim() },
+            token,
         });
         return {
             content: [
-                { type: 'text', text: `Checklist item added: "${item.title}" (ID: ${item.id})` },
+                { type: 'text', text: `Checklist item added: "${data.item.title}" (ID: ${data.item.id})` },
             ],
         };
     }
     if (action === 'toggle') {
         if (!itemId)
             throw new Error('itemId is required for "toggle" action');
-        const updated = await prisma.checklistItem.update({
-            where: { id: itemId },
-            data: { isCompleted: isCompleted !== undefined ? isCompleted : true },
+        const data = await apiRequest(`/api/cards/${cardId}/checklists`, {
+            method: 'PUT',
+            body: { itemId, isCompleted: isCompleted !== undefined ? isCompleted : true },
+            token,
         });
         return {
             content: [
                 {
                     type: 'text',
-                    text: `Checklist item "${updated.title}" set to ${updated.isCompleted ? 'COMPLETED' : 'INCOMPLETE'}.`,
+                    text: `Checklist item "${data.item.title}" set to ${data.item.isCompleted ? 'COMPLETED' : 'INCOMPLETE'}.`,
                 },
             ],
         };
@@ -740,7 +520,10 @@ server.tool('manage_checklist', 'Manages subtasks or acceptance criteria items o
     if (action === 'delete') {
         if (!itemId)
             throw new Error('itemId is required for "delete" action');
-        await prisma.checklistItem.delete({ where: { id: itemId } });
+        await apiRequest(`/api/cards/${cardId}/checklists?itemId=${itemId}`, {
+            method: 'DELETE',
+            token,
+        });
         return {
             content: [{ type: 'text', text: `Checklist item ${itemId} deleted.` }],
         };
@@ -750,7 +533,7 @@ server.tool('manage_checklist', 'Manages subtasks or acceptance criteria items o
 async function run() {
     const transport = new stdio_js_1.StdioServerTransport();
     await server.connect(transport);
-    console.error('NeoKanban MCP Server running on stdio transport.');
+    console.error('NeoKanban API-Based MCP Server running on stdio transport.');
 }
 run().catch((err) => {
     console.error('Fatal MCP Server error:', err);
