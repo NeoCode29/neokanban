@@ -15,8 +15,10 @@ import {
   Check,
   Loader2,
   Columns,
+  Users,
+  UserPlus,
 } from 'lucide-react'
-import { CardData } from './KanbanCard'
+import { CardData, getInitials, getAvatarColor } from './KanbanCard'
 import ChecklistSection, { ChecklistItemData } from './ChecklistSection'
 import CommentSection, { CommentData } from './CommentSection'
 import MarkdownViewer from '../ui/MarkdownViewer'
@@ -48,6 +50,14 @@ export default function CardDetailModal({
   const [tagInput, setTagInput] = useState('')
   const [previewDesc, setPreviewDesc] = useState(false)
 
+  // Assignee states
+  const [boardCandidates, setBoardCandidates] = useState<
+    Array<{ id: string; name: string | null; email: string; avatarUrl?: string | null }>
+  >([])
+  const [showAssigneePopover, setShowAssigneePopover] = useState(false)
+  const [memberSearch, setMemberSearch] = useState('')
+  const [assigningLoading, setAssigningLoading] = useState(false)
+
   const standardDescriptionTemplate = `### 🎯 Objective
 [What problem or user feature does this task address?]
 
@@ -76,6 +86,27 @@ export default function CardDetailModal({
           setColumnName(c.column?.title || 'Board Column')
           if (c.dueDate) {
             setDueDate(new Date(c.dueDate).toISOString().split('T')[0])
+          }
+
+          // Fetch board members for assignee selection
+          if (c.column?.boardId) {
+            fetch(`/api/boards/${c.column.boardId}/members`)
+              .then((res) => (res.ok ? res.json() : null))
+              .then((memData) => {
+                if (memData) {
+                  const list: Array<{ id: string; name: string | null; email: string; avatarUrl?: string | null }> = []
+                  if (memData.owner) list.push(memData.owner)
+                  if (memData.members) {
+                    memData.members.forEach((m: any) => {
+                      if (m.user && !list.some((u) => u.id === m.user.id)) {
+                        list.push(m.user)
+                      }
+                    })
+                  }
+                  setBoardCandidates(list)
+                }
+              })
+              .catch(console.error)
           }
         }
       })
@@ -159,6 +190,62 @@ export default function CardDetailModal({
     const nextTags = tags.filter((t) => t !== tagToRemove)
     setTags(nextTags)
     handleSaveDetails({ tags: nextTags })
+  }
+
+  const handleToggleAssignee = async (targetUserId: string) => {
+    if (!card) return
+    const isAssigned = card.assignees?.some((a) => a.userId === targetUserId)
+    setAssigningLoading(true)
+
+    try {
+      if (isAssigned) {
+        const res = await fetch(`/api/cards/${cardId}/assignees/${targetUserId}`, {
+          method: 'DELETE',
+        })
+        if (res.ok) {
+          const data = await res.json()
+          if (data.card) {
+            setCard(data.card)
+            onCardUpdated(data.card)
+          }
+        }
+      } else {
+        const res = await fetch(`/api/cards/${cardId}/assignees`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId: targetUserId }),
+        })
+        if (res.ok) {
+          const data = await res.json()
+          if (data.card) {
+            setCard(data.card)
+            onCardUpdated(data.card)
+          }
+        }
+      }
+    } catch (err) {
+      console.error('Failed to toggle assignee:', err)
+    } finally {
+      setAssigningLoading(false)
+    }
+  }
+
+  const handleRemoveAssignee = async (targetUserId: string) => {
+    if (!card) return
+    try {
+      const res = await fetch(`/api/cards/${cardId}/assignees/${targetUserId}`, {
+        method: 'DELETE',
+      })
+      if (res.ok) {
+        const data = await res.json()
+        if (data.card) {
+          setCard(data.card)
+          onCardUpdated(data.card)
+        }
+      }
+    } catch (err) {
+      console.error('Failed to remove assignee:', err)
+    }
   }
 
   const priorityColors = {
@@ -326,6 +413,134 @@ export default function CardDetailModal({
               <h4 className="text-[11px] font-semibold text-neutral-400 uppercase tracking-wider mb-3">
                 Properties
               </h4>
+
+              {/* Assignees (Multiple) */}
+              <div className="space-y-1.5 mb-4">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs text-neutral-500 flex items-center gap-1.5">
+                    <Users className="w-3.5 h-3.5 text-neutral-400" />
+                    <span>Assignees</span>
+                  </label>
+
+                  <div className="relative">
+                    <button
+                      type="button"
+                      onClick={() => setShowAssigneePopover(!showAssigneePopover)}
+                      className="text-[11px] text-neutral-600 hover:text-neutral-900 font-medium flex items-center gap-1 px-1.5 py-0.5 rounded hover:bg-neutral-200/60 transition-colors"
+                      title="Assign member"
+                    >
+                      <UserPlus className="w-3 h-3" />
+                      <span>Assign</span>
+                    </button>
+
+                    {/* Member Selector Popover */}
+                    {showAssigneePopover && (
+                      <div className="absolute right-0 top-6 w-64 bg-white border border-neutral-200 rounded-xl shadow-xl p-2 z-50 animate-in fade-in space-y-1.5">
+                        <div className="flex items-center justify-between px-1 pb-1 border-b border-neutral-100">
+                          <span className="text-[11px] font-semibold text-neutral-700">Assign Member</span>
+                          <button
+                            type="button"
+                            onClick={() => setShowAssigneePopover(false)}
+                            className="text-neutral-400 hover:text-neutral-700 p-0.5 rounded"
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        </div>
+
+                        {boardCandidates.length > 4 && (
+                          <input
+                            type="text"
+                            value={memberSearch}
+                            onChange={(e) => setMemberSearch(e.target.value)}
+                            placeholder="Search members..."
+                            className="w-full text-xs bg-neutral-50 border border-neutral-200 rounded-lg px-2 py-1 text-neutral-800 placeholder-neutral-400 focus:outline-none focus:border-neutral-400"
+                          />
+                        )}
+
+                        <div className="max-h-48 overflow-y-auto space-y-0.5">
+                          {boardCandidates
+                            .filter((m) => {
+                              if (!memberSearch.trim()) return true
+                              const q = memberSearch.toLowerCase()
+                              return (m.name && m.name.toLowerCase().includes(q)) || m.email.toLowerCase().includes(q)
+                            })
+                            .map((m) => {
+                              const isAssigned = card?.assignees?.some((a) => a.userId === m.id)
+                              return (
+                                <button
+                                  key={m.id}
+                                  type="button"
+                                  disabled={assigningLoading}
+                                  onClick={() => handleToggleAssignee(m.id)}
+                                  className="w-full flex items-center justify-between px-2 py-1.5 rounded-lg hover:bg-neutral-100 transition-colors text-left text-xs group disabled:opacity-50"
+                                >
+                                  <div className="flex items-center gap-2 min-w-0">
+                                    <div
+                                      className={`w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold shrink-0 ${getAvatarColor(
+                                        m.id
+                                      )}`}
+                                    >
+                                      {getInitials(m.name || m.email)}
+                                    </div>
+                                    <div className="truncate">
+                                      <p className="font-medium text-neutral-900 truncate leading-tight">
+                                        {m.name || m.email}
+                                      </p>
+                                      <p className="text-[10px] text-neutral-400 truncate leading-tight">
+                                        {m.email}
+                                      </p>
+                                    </div>
+                                  </div>
+                                  {isAssigned && (
+                                    <Check className="w-3.5 h-3.5 text-neutral-800 shrink-0 ml-1" />
+                                  )}
+                                </button>
+                              )
+                            })}
+                          {boardCandidates.length === 0 && (
+                            <p className="text-[11px] text-neutral-400 p-2 text-center">
+                              No members available.
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Assigned Members Chips */}
+                <div className="flex flex-wrap gap-1.5 min-h-[26px]">
+                  {card?.assignees && card.assignees.length > 0 ? (
+                    card.assignees.map((a) => (
+                      <span
+                        key={a.id || a.userId}
+                        className="inline-flex items-center gap-1 text-[11px] pl-1 pr-1.5 py-0.5 rounded-full bg-neutral-100 border border-neutral-200/80 text-neutral-800 shadow-2xs"
+                      >
+                        <span
+                          className={`w-4 h-4 rounded-full flex items-center justify-center text-[8px] font-bold ${getAvatarColor(
+                            a.user.id
+                          )}`}
+                        >
+                          {getInitials(a.user.name || a.user.email)}
+                        </span>
+                        <span className="truncate max-w-[90px] font-medium">
+                          {a.user.name || a.user.email.split('@')[0]}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveAssignee(a.user.id)}
+                          className="hover:text-red-600 text-neutral-400 rounded p-0.5 transition-colors"
+                          title="Remove assignment"
+                        >
+                          <X className="w-2.5 h-2.5" />
+                        </button>
+                      </span>
+                    ))
+                  ) : (
+                    <p className="text-xs text-neutral-400 italic py-0.5">No members assigned</p>
+                  )}
+                </div>
+              </div>
 
               {/* Priority */}
               <div className="space-y-1.5 mb-4">
