@@ -24,6 +24,7 @@ model User {
   updatedAt    DateTime              @updatedAt
   boards       Board[]               @relation("BoardOwner")
   memberBoards BoardMember[]
+  assignedCards CardAssignee[]
   tokens       PersonalAccessToken[]
   comments     Comment[]
 }
@@ -115,10 +116,24 @@ model Card {
   priority    Priority        @default(MEDIUM)
   dueDate     DateTime?
   tags        String[]        @default([])
+  assignees   CardAssignee[]
   checklists  ChecklistItem[]
   comments    Comment[]
   createdAt   DateTime        @default(now())
   updatedAt   DateTime        @updatedAt
+}
+
+model CardAssignee {
+  id        String   @id @default(cuid())
+  cardId    String
+  card      Card     @relation(fields: [cardId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([cardId, userId])
+  @@index([cardId])
+  @@index([userId])
 }
 
 model ChecklistItem {
