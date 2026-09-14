@@ -26,6 +26,13 @@ export async function GET(
       checklists: {
         orderBy: { order: 'asc' },
       },
+      assignees: {
+        include: {
+          user: {
+            select: { id: true, name: true, email: true, avatarUrl: true },
+          },
+        },
+      },
       comments: {
         orderBy: { createdAt: 'desc' },
       },
@@ -82,6 +89,13 @@ export async function PUT(
       },
       include: {
         checklists: { orderBy: { order: 'asc' } },
+        assignees: {
+          include: {
+            user: {
+              select: { id: true, name: true, email: true, avatarUrl: true },
+            },
+          },
+        },
         _count: { select: { comments: true } },
       },
     })
