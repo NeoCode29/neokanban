@@ -11,6 +11,7 @@ import {
   Calendar,
   Loader2,
   X,
+  Users,
 } from 'lucide-react'
 
 interface BoardItem {
@@ -18,6 +19,9 @@ interface BoardItem {
   title: string
   description: string | null
   isFavorite: boolean
+  isOwner?: boolean
+  ownerName?: string
+  memberCount?: number
   createdAt: string
   updatedAt: string
   columnCount: number
@@ -187,8 +191,21 @@ export default function DashboardPage() {
               >
                 <div>
                   <div className="flex items-start justify-between gap-3 mb-3">
-                    <div className="w-8 h-8 rounded-xl bg-neutral-100 border border-neutral-200/80 flex items-center justify-center text-neutral-700">
-                      <FolderKanban className="w-4 h-4" />
+                    <div className="flex items-center gap-2">
+                      <div className="w-8 h-8 rounded-xl bg-neutral-100 border border-neutral-200/80 flex items-center justify-center text-neutral-700">
+                        <FolderKanban className="w-4 h-4" />
+                      </div>
+                      {board.isOwner === false ? (
+                        <span className="inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200/60">
+                          <Users className="w-3 h-3" />
+                          <span>Shared</span>
+                        </span>
+                      ) : board.memberCount && board.memberCount > 0 ? (
+                        <span className="inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full bg-neutral-100 text-neutral-600 border border-neutral-200/60">
+                          <Users className="w-3 h-3" />
+                          <span>{board.memberCount} member{board.memberCount > 1 ? 's' : ''}</span>
+                        </span>
+                      ) : null}
                     </div>
 
                     <button

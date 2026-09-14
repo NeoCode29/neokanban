@@ -9,9 +9,11 @@ import {
   BookOpen,
   Kanban as KanbanIcon,
   Loader2,
+  Users,
 } from 'lucide-react'
 import KanbanBoard from '@/components/kanban/KanbanBoard'
 import CardDetailModal from '@/components/kanban/CardDetailModal'
+import ShareBoardModal from '@/components/kanban/ShareBoardModal'
 import { CardData } from '@/components/kanban/KanbanCard'
 import { ColumnData } from '@/components/kanban/KanbanColumn'
 import ProjectContextView, { ContextDocument } from '@/components/context/ProjectContextView'
@@ -21,6 +23,8 @@ interface BoardDetail {
   title: string
   description: string | null
   isFavorite: boolean
+  isOwner?: boolean
+  members?: any[]
   columns: ColumnData[]
   projectContext?: any
   contextDocuments?: ContextDocument[]
@@ -35,6 +39,7 @@ export default function BoardPage({ params }: { params: Promise<{ id: string }> 
   const [activeTab, setActiveTab] = useState<'board' | 'context'>('board')
   const [activeFilter, setActiveFilter] = useState<string>('all')
   const [selectedCardId, setSelectedCardId] = useState<string | null>(null)
+  const [showShareModal, setShowShareModal] = useState(false)
 
   const fetchBoard = useCallback(async () => {
     try {
@@ -196,8 +201,22 @@ export default function BoardPage({ params }: { params: Promise<{ id: string }> 
           </div>
         </div>
 
-        {/* Right: Only Primary Black Action Button */}
-        <div>
+        {/* Right: Primary Action Buttons */}
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setShowShareModal(true)}
+            className="bg-white hover:bg-neutral-50 text-neutral-700 border border-neutral-200 px-3 py-2 rounded-xl text-xs font-semibold flex items-center gap-1.5 shadow-2xs transition-colors"
+            title="Share board with team"
+          >
+            <Users className="w-3.5 h-3.5 text-neutral-500" />
+            <span>Share</span>
+            {board.members && board.members.length > 0 && (
+              <span className="ml-0.5 px-1.5 py-0.2 rounded-full bg-neutral-100 text-[10px] text-neutral-600 font-mono">
+                {board.members.length}
+              </span>
+            )}
+          </button>
+
           <button
             onClick={handleQuickAddTask}
             className="bg-neutral-900 hover:bg-neutral-800 text-white px-3.5 py-2 rounded-xl text-xs font-semibold flex items-center gap-1.5 shadow-sm transition-colors"
@@ -282,6 +301,16 @@ export default function BoardPage({ params }: { params: Promise<{ id: string }> 
           onClose={() => setSelectedCardId(null)}
           onCardUpdated={handleCardUpdated}
           onCardDeleted={handleCardDeleted}
+        />
+      )}
+
+      {/* 5. Share Board Modal */}
+      {showShareModal && (
+        <ShareBoardModal
+          boardId={board.id}
+          boardTitle={board.title}
+          onClose={() => setShowShareModal(false)}
+          onMembersChange={() => fetchBoard()}
         />
       )}
     </div>

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
 import { useDroppable } from '@dnd-kit/core'
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import KanbanCard, { CardData } from './KanbanCard'
@@ -28,6 +28,34 @@ export default function KanbanColumn({
   const [isAdding, setIsAdding] = useState(false)
   const [newTitle, setNewTitle] = useState('')
   const [loading, setLoading] = useState(false)
+
+  const cardsContainerRef = useRef<HTMLDivElement>(null)
+  const cardsEndRef = useRef<HTMLDivElement>(null)
+
+  const scrollToBottom = useCallback((behavior: ScrollBehavior = 'auto') => {
+    if (cardsContainerRef.current) {
+      cardsContainerRef.current.scrollTo({
+        top: cardsContainerRef.current.scrollHeight,
+        behavior,
+      })
+    }
+  }, [])
+
+  // Auto-scroll to bottom on mount, when cards are added, or when add form opens
+  useEffect(() => {
+    scrollToBottom('auto')
+    const timer = setTimeout(() => {
+      scrollToBottom('auto')
+    }, 50)
+    return () => clearTimeout(timer)
+  }, [column.cards.length, isAdding, scrollToBottom])
+
+  const handleOpenAdd = () => {
+    setIsAdding(true)
+    setTimeout(() => {
+      scrollToBottom('smooth')
+    }, 50)
+  }
 
   const { setNodeRef, isOver } = useDroppable({
     id: column.id,
@@ -87,7 +115,7 @@ export default function KanbanColumn({
         </div>
 
         <button
-          onClick={() => setIsAdding(true)}
+          onClick={handleOpenAdd}
           className="p-1 text-neutral-400 hover:text-neutral-700 hover:bg-neutral-200/60 rounded-md transition-colors"
           title="Add card"
         >
@@ -96,7 +124,10 @@ export default function KanbanColumn({
       </div>
 
       {/* Cards List */}
-      <div className="flex-1 space-y-3 overflow-y-auto min-h-[80px] px-0.5">
+      <div
+        ref={cardsContainerRef}
+        className="flex-1 space-y-3 overflow-y-auto min-h-[80px] px-0.5"
+      >
         <SortableContext items={cardIds} strategy={verticalListSortingStrategy}>
           {column.cards.map((card) => (
             <KanbanCard key={card.id} card={card} onClick={onCardClick} />
@@ -146,13 +177,14 @@ export default function KanbanColumn({
             </div>
           </form>
         )}
+        <div ref={cardsEndRef} />
       </div>
 
       {/* Bottom Add Card Button */}
       {!isAdding && (
         <div className="pt-2">
           <button
-            onClick={() => setIsAdding(true)}
+            onClick={handleOpenAdd}
             className="w-full py-1.5 rounded-lg hover:bg-neutral-200/60 text-xs font-medium text-neutral-500 hover:text-neutral-800 flex items-center justify-center gap-1.5 transition-colors"
           >
             <Plus className="w-3.5 h-3.5" />
