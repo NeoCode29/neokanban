@@ -109,6 +109,28 @@ export default function BoardPage({ params }: { params: Promise<{ id: string }> 
     })
   }
 
+  const handleCardAdded = (columnId: string, card: CardData) => {
+    setBoard((prev) => {
+      if (!prev) return prev
+      return {
+        ...prev,
+        columns: prev.columns.map((col) =>
+          col.id === columnId ? { ...col, cards: [...col.cards, card] } : col
+        ),
+      }
+    })
+  }
+
+  const handleColumnAdded = (newColumn: ColumnData) => {
+    setBoard((prev) => {
+      if (!prev) return prev
+      return {
+        ...prev,
+        columns: [...prev.columns, newColumn],
+      }
+    })
+  }
+
   const handleQuickAddTask = async () => {
     if (!board || board.columns.length === 0) return
     const targetCol = board.columns[0]
@@ -285,6 +307,8 @@ export default function BoardPage({ params }: { params: Promise<{ id: string }> 
           initialColumns={displayedColumns}
           onCardClick={(card) => setSelectedCardId(card.id)}
           onRefresh={fetchBoard}
+          onCardAdded={handleCardAdded}
+          onColumnAdded={handleColumnAdded}
         />
       ) : (
         <ProjectContextView

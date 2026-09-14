@@ -23,6 +23,8 @@ interface KanbanBoardProps {
   initialColumns: ColumnData[]
   onCardClick: (card: CardData) => void
   onRefresh: () => void
+  onCardAdded?: (columnId: string, card: CardData) => void
+  onColumnAdded?: (column: ColumnData) => void
 }
 
 export default function KanbanBoard({
@@ -30,6 +32,8 @@ export default function KanbanBoard({
   initialColumns,
   onCardClick,
   onRefresh,
+  onCardAdded,
+  onColumnAdded,
 }: KanbanBoardProps) {
   const [columns, setColumns] = useState<ColumnData[]>(initialColumns)
 
@@ -126,7 +130,7 @@ export default function KanbanBoard({
     if (cardIndex < 0) return
 
     try {
-      await fetch(`/api/cards/${activeId}/move`, {
+      const res = await fetch(`/api/cards/${activeId}/move`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -134,6 +138,9 @@ export default function KanbanBoard({
           targetOrder: cardIndex,
         }),
       })
+      if (res.ok) {
+        onRefresh()
+      }
     } catch (err) {
       console.error('Failed to sync card move:', err)
       onRefresh()
@@ -155,6 +162,8 @@ export default function KanbanBoard({
             col.id === columnId ? { ...col, cards: [...col.cards, card] } : col
           )
         )
+        onCardAdded?.(columnId, card)
+        onRefresh()
       }
     } catch (err) {
       console.error(err)
@@ -178,6 +187,8 @@ export default function KanbanBoard({
         setColumns((prev) => [...prev, column])
         setNewColumnTitle('')
         setIsAddingColumn(false)
+        onColumnAdded?.(column)
+        onRefresh()
       }
     } catch (err) {
       console.error(err)
