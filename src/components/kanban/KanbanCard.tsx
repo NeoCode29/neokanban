@@ -4,6 +4,17 @@ import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { Calendar, CheckSquare, MessageSquare, User, Bot, GripVertical } from 'lucide-react'
 
+export interface CardAssigneeData {
+  id: string
+  userId: string
+  user: {
+    id: string
+    name: string
+    email: string
+    avatarUrl?: string | null
+  }
+}
+
 export interface CardData {
   id: string
   columnId: string
@@ -14,8 +25,35 @@ export interface CardData {
   tags: string[]
   dueDate?: string | null
   createdAt?: string
+  assignees?: CardAssigneeData[]
   checklists: { id: string; isCompleted: boolean; title: string }[]
   _count?: { comments: number }
+}
+
+export function getInitials(name: string): string {
+  const parts = name.trim().split(/\s+/)
+  if (parts.length >= 2) {
+    return (parts[0][0] + parts[1][0]).toUpperCase()
+  }
+  return name.slice(0, 2).toUpperCase() || 'U'
+}
+
+export const AVATAR_COLORS = [
+  'bg-amber-100 text-amber-800 border-amber-200',
+  'bg-blue-100 text-blue-800 border-blue-200',
+  'bg-emerald-100 text-emerald-800 border-emerald-200',
+  'bg-purple-100 text-purple-800 border-purple-200',
+  'bg-rose-100 text-rose-800 border-rose-200',
+  'bg-indigo-100 text-indigo-800 border-indigo-200',
+]
+
+export function getAvatarColor(id: string): string {
+  let hash = 0
+  for (let i = 0; i < id.length; i++) {
+    hash = (hash << 5) - hash + id.charCodeAt(i)
+  }
+  const index = Math.abs(hash) % AVATAR_COLORS.length
+  return AVATAR_COLORS[index]
 }
 
 interface KanbanCardProps {
@@ -127,10 +165,39 @@ export default function KanbanCard({ card, onClick }: KanbanCardProps) {
             </span>
           )}
 
-          {/* Minimal Avatar / AI badge */}
-          <div className="w-5 h-5 rounded-full bg-neutral-100 border border-neutral-200/80 flex items-center justify-center text-neutral-500">
-            <User className="w-2.5 h-2.5" />
-          </div>
+          {/* Avatar Stack for Multiple Assignees */}
+          {card.assignees && card.assignees.length > 0 ? (
+            <div className="flex items-center -space-x-1.5 overflow-hidden pl-1">
+              {card.assignees.slice(0, 3).map((a, idx) => (
+                <div
+                  key={a.id || a.userId}
+                  title={a.user.name || a.user.email}
+                  style={{ zIndex: 10 - idx }}
+                  className={`w-5 h-5 rounded-full border border-white flex items-center justify-center text-[9px] font-bold shadow-2xs transition-transform hover:scale-110 hover:z-20 cursor-default ${getAvatarColor(
+                    a.user.id
+                  )}`}
+                >
+                  {getInitials(a.user.name || a.user.email)}
+                </div>
+              ))}
+              {card.assignees.length > 3 && (
+                <div
+                  title={`${card.assignees.length - 3} more assignees`}
+                  style={{ zIndex: 5 }}
+                  className="w-5 h-5 rounded-full border border-white bg-neutral-100 text-neutral-600 flex items-center justify-center text-[8px] font-bold shadow-2xs"
+                >
+                  +{card.assignees.length - 3}
+                </div>
+              )}
+            </div>
+          ) : (
+            <div
+              title="Unassigned"
+              className="w-5 h-5 rounded-full bg-neutral-100/80 border border-neutral-200/80 flex items-center justify-center text-neutral-400"
+            >
+              <User className="w-2.5 h-2.5" />
+            </div>
+          )}
         </div>
       </div>
     </div>
