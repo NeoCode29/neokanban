@@ -23,6 +23,7 @@ model User {
   createdAt    DateTime              @default(now())
   updatedAt    DateTime              @updatedAt
   boards       Board[]               @relation("BoardOwner")
+  memberBoards BoardMember[]
   tokens       PersonalAccessToken[]
   comments     Comment[]
 }
@@ -45,11 +46,26 @@ model Board {
   isFavorite       Boolean           @default(false)
   ownerId          String
   owner            User              @relation("BoardOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  members          BoardMember[]
   columns          Column[]
   projectContext   ProjectContext?
   contextDocuments ContextDocument[]
   createdAt        DateTime          @default(now())
   updatedAt        DateTime          @updatedAt
+}
+
+model BoardMember {
+  id        String   @id @default(cuid())
+  boardId   String
+  board     Board    @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role      String   @default("COLLABORATOR")
+  createdAt DateTime @default(now())
+
+  @@unique([boardId, userId])
+  @@index([boardId])
+  @@index([userId])
 }
 
 model ContextDocument {
