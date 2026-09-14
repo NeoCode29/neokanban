@@ -145,20 +145,63 @@ async function main() {
   )
   console.log(`✅ Card verified in DB with ID: ${createdCard?.id}`)
 
-  // 6. Call add_card_comment
+  // 6. Call get_card_details
   if (createdCard) {
+    console.log('\n🔍 Calling get_card_details...')
+    const cardDetailsResult: any = await client.callTool({
+      name: 'get_card_details',
+      arguments: { cardId: createdCard.id },
+    })
+    const cardDetails = JSON.parse(cardDetailsResult.content[0].text)
+    console.log(`✅ Card Details retrieved: "${cardDetails.title}" (Priority: ${cardDetails.priority})`)
+
+    // 7. Call manage_checklist (add subtask)
+    console.log('\n📋 Calling manage_checklist (action: "add")...')
+    const addChecklistResult: any = await client.callTool({
+      name: 'manage_checklist',
+      arguments: {
+        cardId: createdCard.id,
+        action: 'add',
+        title: 'Run MCP full suite test',
+      },
+    })
+    console.log('✅ ' + addChecklistResult.content[0].text)
+
+    // 7b. Call manage_checklist (toggle subtask)
+    const refreshedDetailsResult: any = await client.callTool({
+      name: 'get_card_details',
+      arguments: { cardId: createdCard.id },
+    })
+    const refreshedDetails = JSON.parse(refreshedDetailsResult.content[0].text)
+    const checklistItemId = refreshedDetails.checklists[0]?.id
+
+    if (checklistItemId) {
+      console.log('☑️ Calling manage_checklist (action: "toggle")...')
+      const toggleResult: any = await client.callTool({
+        name: 'manage_checklist',
+        arguments: {
+          cardId: createdCard.id,
+          action: 'toggle',
+          itemId: checklistItemId,
+          isCompleted: true,
+        },
+      })
+      console.log('✅ ' + toggleResult.content[0].text)
+    }
+
+    // 8. Call add_card_comment
     console.log('\n💬 Calling add_card_comment...')
     const commentResult: any = await client.callTool({
       name: 'add_card_comment',
       arguments: {
         cardId: createdCard.id,
         authorName: 'Claude 3.7 Sonnet (MCP Test)',
-        content: `**Status:** \`[UPDATE]\`\n\n**📝 Summary of Actions:**\n- Completed automated verification of MCP server stdio tools.\n\n**🔗 Changed Files:**\n- \`mcp/dist/index.js\`\n\n**❓ Questions:**\nNone. All 9 tools operating correctly.`,
+        content: `**Status:** \`[UPDATE]\`\n\n**📝 Summary of Actions:**\n- Completed automated verification of MCP server stdio tools.\n\n**🔗 Changed Files:**\n- \`mcp/dist/index.js\`\n\n**❓ Questions:**\nNone. All 10 tools operating correctly.`,
       },
     })
     console.log('✅ ' + commentResult.content[0].text)
 
-    // 7. Call update_card (move to In Progress)
+    // 9. Call update_card (move to In Progress)
     console.log('\n🚚 Calling update_card to move task to "In Progress"...')
     const updateResult: any = await client.callTool({
       name: 'update_card',
@@ -168,6 +211,48 @@ async function main() {
       },
     })
     console.log('✅ ' + updateResult.content[0].text)
+
+    // 10. Call list_board_members
+    console.log('\n👥 Calling list_board_members...')
+    const membersResult: any = await client.callTool({
+      name: 'list_board_members',
+      arguments: { boardId },
+    })
+    const boardMembersData = JSON.parse(membersResult.content[0].text)
+    console.log(`✅ Retrieved ${boardMembersData.members.length} board member(s):`)
+    boardMembersData.members.forEach((m: any) =>
+      console.log(`   - ${m.name} (${m.email}) [${m.role}]`)
+    )
+
+    // 11. Call assign_card_member
+    console.log('\n🎯 Calling assign_card_member...')
+    const assignResult: any = await client.callTool({
+      name: 'assign_card_member',
+      arguments: {
+        cardId: createdCard.id,
+        member: boardMembersData.members[0].email,
+      },
+    })
+    console.log('✅ ' + assignResult.content[0].text)
+
+    // 12. Verify card has assignees in get_card_details
+    const assignedDetailsResult: any = await client.callTool({
+      name: 'get_card_details',
+      arguments: { cardId: createdCard.id },
+    })
+    const assignedDetails = JSON.parse(assignedDetailsResult.content[0].text)
+    console.log(`✅ Verified assignees on card: ${assignedDetails.assignees.map((a: any) => a.name).join(', ')}`)
+
+    // 13. Call unassign_card_member
+    console.log('\n🗑️ Calling unassign_card_member...')
+    const unassignResult: any = await client.callTool({
+      name: 'unassign_card_member',
+      arguments: {
+        cardId: createdCard.id,
+        member: boardMembersData.members[0].email,
+      },
+    })
+    console.log('✅ ' + unassignResult.content[0].text)
   }
 
   await client.close()
