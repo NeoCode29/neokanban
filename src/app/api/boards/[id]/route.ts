@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { getCurrentUser } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { hasBoardAccess } from '@/lib/board-auth'
 
 export async function GET(
   _req: Request,
@@ -12,10 +13,24 @@ export async function GET(
   }
 
   const { id } = await params
+  const access = await hasBoardAccess(id, user.id)
+  if (!access.hasAccess) {
+    return NextResponse.json({ error: 'Board not found' }, { status: 404 })
+  }
 
   const board = await prisma.board.findUnique({
     where: { id },
     include: {
+      owner: {
+        select: { id: true, name: true, email: true },
+      },
+      members: {
+        include: {
+          user: {
+            select: { id: true, name: true, email: true, avatarUrl: true },
+          },
+        },
+      },
       columns: {
         include: {
           cards: {
@@ -39,11 +54,16 @@ export async function GET(
     },
   })
 
-  if (!board || board.ownerId !== user.id) {
+  if (!board) {
     return NextResponse.json({ error: 'Board not found' }, { status: 404 })
   }
 
-  return NextResponse.json({ board })
+  return NextResponse.json({
+    board: {
+      ...board,
+      isOwner: access.isOwner,
+    },
+  })
 }
 
 export async function PUT(
@@ -56,14 +76,14 @@ export async function PUT(
   }
 
   const { id } = await params
+  const access = await hasBoardAccess(id, user.id)
+  if (!access.hasAccess) {
+    return NextResponse.json({ error: 'Board not found' }, { status: 404 })
+  }
+
   const { title, description, isFavorite } = await req.json()
 
   try {
-    const existing = await prisma.board.findUnique({ where: { id } })
-    if (!existing || existing.ownerId !== user.id) {
-      return NextResponse.json({ error: 'Board not found' }, { status: 404 })
-    }
-
     const updated = await prisma.board.update({
       where: { id },
       data: {
@@ -73,7 +93,7 @@ export async function PUT(
       },
     })
 
-    return NextResponse.json({ board: updated })
+    return NextResponse.json({ board: { ...updated, isOwner: access.isOwner } })
   } catch (error: any) {
     console.error('Update board error:', error)
     return NextResponse.json({ error: 'Failed to update board' }, { status: 500 })
@@ -90,13 +110,16 @@ export async function DELETE(
   }
 
   const { id } = await params
+  const access = await hasBoardAccess(id, user.id)
+  if (!access.hasAccess) {
+    return NextResponse.json({ error: 'Board not found' }, { status: 404 })
+  }
+
+  if (!access.isOwner) {
+    return NextResponse.json({ error: 'Only the board owner can delete this board' }, { status: 403 })
+  }
 
   try {
-    const existing = await prisma.board.findUnique({ where: { id } })
-    if (!existing || existing.ownerId !== user.id) {
-      return NextResponse.json({ error: 'Board not found' }, { status: 404 })
-    }
-
     await prisma.board.delete({ where: { id } })
     return NextResponse.json({ message: 'Board deleted successfully' })
   } catch (error: any) {

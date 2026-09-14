@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { getCurrentUser } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { Priority } from '@prisma/client'
+import { hasBoardAccess } from '@/lib/board-auth'
 
 export async function GET(
   _req: Request,
@@ -31,8 +32,13 @@ export async function GET(
     },
   })
 
-  if (!card || card.column.board.ownerId !== user.id) {
+  if (!card) {
     return NextResponse.json({ error: 'Card not found' }, { status: 404 })
+  }
+
+  const access = await hasBoardAccess(card.column.boardId, user.id)
+  if (!access.hasAccess) {
+    return NextResponse.json({ error: 'Card not found or access denied' }, { status: 404 })
   }
 
   return NextResponse.json({ card })
@@ -56,8 +62,13 @@ export async function PUT(
       include: { column: { include: { board: true } } },
     })
 
-    if (!existing || existing.column.board.ownerId !== user.id) {
+    if (!existing) {
       return NextResponse.json({ error: 'Card not found' }, { status: 404 })
+    }
+
+    const access = await hasBoardAccess(existing.column.boardId, user.id)
+    if (!access.hasAccess) {
+      return NextResponse.json({ error: 'Card not found or access denied' }, { status: 404 })
     }
 
     const updated = await prisma.card.update({
@@ -99,8 +110,13 @@ export async function DELETE(
       include: { column: { include: { board: true } } },
     })
 
-    if (!existing || existing.column.board.ownerId !== user.id) {
+    if (!existing) {
       return NextResponse.json({ error: 'Card not found' }, { status: 404 })
+    }
+
+    const access = await hasBoardAccess(existing.column.boardId, user.id)
+    if (!access.hasAccess) {
+      return NextResponse.json({ error: 'Card not found or access denied' }, { status: 404 })
     }
 
     await prisma.card.delete({ where: { id } })

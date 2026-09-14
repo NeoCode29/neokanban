@@ -44,8 +44,14 @@ export async function POST(
       include: { column: { include: { board: true } } },
     })
 
-    if (!card || card.column.board.ownerId !== user.id) {
+    if (!card) {
       return NextResponse.json({ error: 'Card not found' }, { status: 404 })
+    }
+
+    const { hasBoardAccess } = await import('@/lib/board-auth')
+    const access = await hasBoardAccess(card.column.boardId, user.id)
+    if (!access.hasAccess) {
+      return NextResponse.json({ error: 'Card not found or access denied' }, { status: 404 })
     }
 
     const comment = await prisma.comment.create({

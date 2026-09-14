@@ -15,8 +15,19 @@ export async function GET() {
   }
 
   const boards = await prisma.board.findMany({
-    where: { ownerId: user.id },
+    where: {
+      OR: [
+        { ownerId: user.id },
+        { members: { some: { userId: user.id } } },
+      ],
+    },
     include: {
+      owner: {
+        select: { id: true, name: true, email: true },
+      },
+      members: {
+        select: { id: true },
+      },
       columns: {
         select: {
           id: true,
@@ -36,6 +47,9 @@ export async function GET() {
     title: b.title,
     description: b.description,
     isFavorite: b.isFavorite,
+    isOwner: b.ownerId === user.id,
+    ownerName: b.owner.name,
+    memberCount: b.members.length,
     createdAt: b.createdAt,
     updatedAt: b.updatedAt,
     columnCount: b.columns.length,

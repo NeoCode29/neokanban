@@ -20,12 +20,10 @@ export async function POST(
       return NextResponse.json({ error: 'Column title is required' }, { status: 400 })
     }
 
-    const board = await prisma.board.findUnique({
-      where: { id },
-    })
-
-    if (!board || board.ownerId !== user.id) {
-      return NextResponse.json({ error: 'Board not found' }, { status: 404 })
+    const { hasBoardAccess } = await import('@/lib/board-auth')
+    const access = await hasBoardAccess(id, user.id)
+    if (!access.hasAccess) {
+      return NextResponse.json({ error: 'Board not found or access denied' }, { status: 404 })
     }
 
     const maxOrder = await prisma.column.findFirst({

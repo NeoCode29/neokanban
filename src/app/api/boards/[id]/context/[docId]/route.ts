@@ -18,8 +18,14 @@ export async function GET(
     include: { board: true },
   })
 
-  if (!doc || doc.boardId !== id || doc.board.ownerId !== user.id) {
+  if (!doc || doc.boardId !== id) {
     return NextResponse.json({ error: 'Context document not found' }, { status: 404 })
+  }
+
+  const { hasBoardAccess } = await import('@/lib/board-auth')
+  const access = await hasBoardAccess(id, user.id)
+  if (!access.hasAccess) {
+    return NextResponse.json({ error: 'Context document not found or access denied' }, { status: 404 })
   }
 
   return NextResponse.json({ document: doc })
@@ -42,8 +48,14 @@ export async function PUT(
       include: { board: true },
     })
 
-    if (!existing || existing.boardId !== id || existing.board.ownerId !== user.id) {
+    if (!existing || existing.boardId !== id) {
       return NextResponse.json({ error: 'Context document not found' }, { status: 404 })
+    }
+
+    const { hasBoardAccess } = await import('@/lib/board-auth')
+    const access = await hasBoardAccess(id, user.id)
+    if (!access.hasAccess) {
+      return NextResponse.json({ error: 'Context document not found or access denied' }, { status: 404 })
     }
 
     const { title, fileName, content, order } = await req.json()
@@ -104,8 +116,14 @@ export async function DELETE(
       include: { board: true },
     })
 
-    if (!existing || existing.boardId !== id || existing.board.ownerId !== user.id) {
+    if (!existing || existing.boardId !== id) {
       return NextResponse.json({ error: 'Context document not found' }, { status: 404 })
+    }
+
+    const { hasBoardAccess } = await import('@/lib/board-auth')
+    const access = await hasBoardAccess(id, user.id)
+    if (!access.hasAccess) {
+      return NextResponse.json({ error: 'Context document not found or access denied' }, { status: 404 })
     }
 
     await prisma.contextDocument.delete({ where: { id: docId } })

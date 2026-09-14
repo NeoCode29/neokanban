@@ -16,14 +16,20 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Column ID and title are required' }, { status: 400 })
     }
 
-    // Verify column exists and belongs to user's board
+    // Verify column exists and user has access to board
     const column = await prisma.column.findUnique({
       where: { id: columnId },
       include: { board: true },
     })
 
-    if (!column || column.board.ownerId !== user.id) {
-      return NextResponse.json({ error: 'Column or board not found' }, { status: 404 })
+    if (!column) {
+      return NextResponse.json({ error: 'Column not found' }, { status: 404 })
+    }
+
+    const { hasBoardAccess } = await import('@/lib/board-auth')
+    const access = await hasBoardAccess(column.boardId, user.id)
+    if (!access.hasAccess) {
+      return NextResponse.json({ error: 'Board not found or access denied' }, { status: 404 })
     }
 
     // Find highest order in this column

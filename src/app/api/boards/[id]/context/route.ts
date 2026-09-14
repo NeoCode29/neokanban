@@ -22,8 +22,10 @@ export async function GET(
     },
   })
 
-  if (!board || board.ownerId !== user.id) {
-    return NextResponse.json({ error: 'Board not found' }, { status: 404 })
+  const { hasBoardAccess } = await import('@/lib/board-auth')
+  const access = await hasBoardAccess(id, user.id)
+  if (!board || !access.hasAccess) {
+    return NextResponse.json({ error: 'Board not found or access denied' }, { status: 404 })
   }
 
   return NextResponse.json({
@@ -44,12 +46,10 @@ export async function POST(
   const { id } = await params
 
   try {
-    const board = await prisma.board.findUnique({
-      where: { id },
-    })
-
-    if (!board || board.ownerId !== user.id) {
-      return NextResponse.json({ error: 'Board not found' }, { status: 404 })
+    const { hasBoardAccess } = await import('@/lib/board-auth')
+    const access = await hasBoardAccess(id, user.id)
+    if (!access.hasAccess) {
+      return NextResponse.json({ error: 'Board not found or access denied' }, { status: 404 })
     }
 
     const { title, fileName, content, order } = await req.json()

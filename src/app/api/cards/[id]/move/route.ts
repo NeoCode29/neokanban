@@ -32,8 +32,14 @@ export async function POST(
       },
     })
 
-    if (!card || card.column.board.ownerId !== user.id) {
+    if (!card) {
       return NextResponse.json({ error: 'Card not found' }, { status: 404 })
+    }
+
+    const { hasBoardAccess } = await import('@/lib/board-auth')
+    const access = await hasBoardAccess(card.column.boardId, user.id)
+    if (!access.hasAccess) {
+      return NextResponse.json({ error: 'Card not found or access denied' }, { status: 404 })
     }
 
     // Verify target column belongs to same board

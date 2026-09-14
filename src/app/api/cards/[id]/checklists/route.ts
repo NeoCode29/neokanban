@@ -24,8 +24,14 @@ export async function POST(
       include: { column: { include: { board: true } } },
     })
 
-    if (!card || card.column.board.ownerId !== user.id) {
+    if (!card) {
       return NextResponse.json({ error: 'Card not found' }, { status: 404 })
+    }
+
+    const { hasBoardAccess } = await import('@/lib/board-auth')
+    const access = await hasBoardAccess(card.column.boardId, user.id)
+    if (!access.hasAccess) {
+      return NextResponse.json({ error: 'Card not found or access denied' }, { status: 404 })
     }
 
     const maxOrder = await prisma.checklistItem.findFirst({
@@ -73,8 +79,14 @@ export async function PUT(
       include: { card: { include: { column: { include: { board: true } } } } },
     })
 
-    if (!item || item.cardId !== id || item.card.column.board.ownerId !== user.id) {
+    if (!item || item.cardId !== id) {
       return NextResponse.json({ error: 'Checklist item not found' }, { status: 404 })
+    }
+
+    const { hasBoardAccess } = await import('@/lib/board-auth')
+    const access = await hasBoardAccess(item.card.column.boardId, user.id)
+    if (!access.hasAccess) {
+      return NextResponse.json({ error: 'Checklist item not found or access denied' }, { status: 404 })
     }
 
     const updated = await prisma.checklistItem.update({
@@ -115,8 +127,14 @@ export async function DELETE(
       include: { card: { include: { column: { include: { board: true } } } } },
     })
 
-    if (!item || item.cardId !== id || item.card.column.board.ownerId !== user.id) {
+    if (!item || item.cardId !== id) {
       return NextResponse.json({ error: 'Checklist item not found' }, { status: 404 })
+    }
+
+    const { hasBoardAccess } = await import('@/lib/board-auth')
+    const access = await hasBoardAccess(item.card.column.boardId, user.id)
+    if (!access.hasAccess) {
+      return NextResponse.json({ error: 'Checklist item not found or access denied' }, { status: 404 })
     }
 
     await prisma.checklistItem.delete({ where: { id: itemId } })
