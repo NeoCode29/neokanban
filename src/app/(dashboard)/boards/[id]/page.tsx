@@ -10,6 +10,8 @@ import {
   Kanban as KanbanIcon,
   Loader2,
   Users,
+  Search,
+  X,
 } from 'lucide-react'
 import KanbanBoard from '@/components/kanban/KanbanBoard'
 import CardDetailModal from '@/components/kanban/CardDetailModal'
@@ -38,6 +40,7 @@ export default function BoardPage({ params }: { params: Promise<{ id: string }> 
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState<'board' | 'context'>('board')
   const [activeFilter, setActiveFilter] = useState<string>('all')
+  const [searchQuery, setSearchQuery] = useState<string>('')
   const [selectedCardId, setSelectedCardId] = useState<string | null>(null)
   const [showShareModal, setShowShareModal] = useState(false)
 
@@ -184,10 +187,22 @@ export default function BoardPage({ params }: { params: Promise<{ id: string }> 
 
   if (!board) return null
 
-  // Filter columns
-  const displayedColumns = board.columns.filter(
-    (c) => (activeFilter === 'all' ? true : c.title.toLowerCase() === activeFilter.toLowerCase())
-  )
+  // Calculate total cards
+  const totalCards = board.columns.reduce((sum, col) => sum + col.cards.length, 0)
+
+  // Filter columns & search cards
+  const displayedColumns = board.columns
+    .filter((c) => (activeFilter === 'all' ? true : c.title.toLowerCase() === activeFilter.toLowerCase()))
+    .map((col) => ({
+      ...col,
+      cards: searchQuery.trim()
+        ? col.cards.filter(
+            (c) =>
+              c.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+              c.tags.some((t) => t.toLowerCase().includes(searchQuery.toLowerCase()))
+          )
+        : col.cards,
+    }))
 
   return (
     <div className="space-y-6">
@@ -269,56 +284,95 @@ export default function BoardPage({ params }: { params: Promise<{ id: string }> 
         </div>
       </div>
 
-      {/* 2. Controls & Filter Bar (Pill tabs) */}
-      <div className="flex items-center gap-3 pb-1">
-        {/* Left: Rounded Pill Filter Bar */}
-        <div className="flex items-center gap-1 p-1 bg-[#eeeff2] rounded-xl w-fit border border-neutral-200/50">
+      {/* 2. Tier 1: Primary View Switcher */}
+      <div className="flex items-center justify-between border-b border-neutral-200/80 pb-2">
+        <div className="flex items-center gap-2">
           <button
-            onClick={() => {
-              setActiveTab('board')
-              setActiveFilter('all')
-            }}
-            className={`px-3 py-1 rounded-lg text-xs transition-all ${
-              activeTab === 'board' && activeFilter === 'all'
-                ? 'bg-white text-neutral-900 shadow-sm border border-neutral-200/60 font-semibold'
-                : 'text-neutral-500 hover:text-neutral-800 font-medium'
+            onClick={() => setActiveTab('board')}
+            className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold transition-all ${
+              activeTab === 'board'
+                ? 'bg-neutral-900 text-white shadow-xs'
+                : 'text-neutral-600 hover:text-neutral-900 hover:bg-neutral-100'
             }`}
           >
-            All
+            <KanbanIcon className="w-3.5 h-3.5" />
+            <span>Kanban Board</span>
+            <span
+              className={`px-1.5 py-0.2 rounded-full text-[10px] font-mono ${
+                activeTab === 'board' ? 'bg-neutral-800 text-neutral-300' : 'bg-neutral-200 text-neutral-600'
+              }`}
+            >
+              {totalCards}
+            </span>
           </button>
 
-          {board.columns.map((col) => (
+          <button
+            onClick={() => setActiveTab('context')}
+            className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold transition-all ${
+              activeTab === 'context'
+                ? 'bg-neutral-900 text-white shadow-xs'
+                : 'text-neutral-600 hover:text-neutral-900 hover:bg-neutral-100'
+            }`}
+          >
+            <BookOpen className="w-3.5 h-3.5" />
+            <span>Living Context</span>
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+          </button>
+        </div>
+      </div>
+
+      {/* 3. Tier 2: Column Filters & Quick Search (Only active in Kanban Board view) */}
+      {activeTab === 'board' && (
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-1">
+          {/* Column Filters Pills */}
+          <div className="flex items-center gap-1 p-1 bg-[#eeeff2] rounded-xl w-fit border border-neutral-200/50 overflow-x-auto">
             <button
-              key={col.id}
-              onClick={() => {
-                setActiveTab('board')
-                setActiveFilter(col.title)
-              }}
+              onClick={() => setActiveFilter('all')}
               className={`px-3 py-1 rounded-lg text-xs transition-all ${
-                activeTab === 'board' && activeFilter === col.title
+                activeFilter === 'all'
                   ? 'bg-white text-neutral-900 shadow-sm border border-neutral-200/60 font-semibold'
                   : 'text-neutral-500 hover:text-neutral-800 font-medium'
               }`}
             >
-              {col.title}
+              All
             </button>
-          ))}
 
-          {/* Project Context Tab in the pill control */}
-          <button
-            onClick={() => setActiveTab('context')}
-            className={`px-3 py-1 rounded-lg text-xs flex items-center gap-1.5 transition-all ${
-              activeTab === 'context'
-                ? 'bg-white text-neutral-900 shadow-sm border border-neutral-200/60 font-semibold'
-                : 'text-neutral-500 hover:text-neutral-800 font-medium'
-            }`}
-          >
-            <BookOpen className="w-3.5 h-3.5 text-neutral-500" />
-            <span>Project Context</span>
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-          </button>
+            {board.columns.map((col) => (
+              <button
+                key={col.id}
+                onClick={() => setActiveFilter(col.title)}
+                className={`px-3 py-1 rounded-lg text-xs transition-all ${
+                  activeFilter.toLowerCase() === col.title.toLowerCase()
+                    ? 'bg-white text-neutral-900 shadow-sm border border-neutral-200/60 font-semibold'
+                    : 'text-neutral-500 hover:text-neutral-800 font-medium'
+                }`}
+              >
+                {col.title}
+              </button>
+            ))}
+          </div>
+
+          {/* Quick Search Cards */}
+          <div className="relative w-full sm:w-64">
+            <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search cards in board..."
+              className="w-full pl-8 pr-7 py-1.5 text-xs bg-white border border-neutral-200 rounded-xl focus:outline-hidden focus:ring-2 focus:ring-neutral-900/10 focus:border-neutral-900 transition-all placeholder:text-neutral-400"
+            />
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery('')}
+                className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 text-neutral-400 hover:text-neutral-700"
+              >
+                <X className="w-3 h-3" />
+              </button>
+            )}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* 3. Main Workspace Area */}
       {activeTab === 'board' ? (
