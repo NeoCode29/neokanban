@@ -31,16 +31,24 @@ NeoKanban is an open-source, modern Kanban task management platform built with *
   - **Cursor AI**
   - **Antigravity / VS Code**
 - **Personal Access Tokens (PAT):** Secure cryptographic API keys generated in user settings (`/settings`).
-- **9 Specialized AI Tools:**
+- **17 Specialized AI Tools:**
   - `list_boards`: List all accessible boards and task statistics.
+  - `list_board_members`: List board owner and all team collaborators.
+  - `list_board_context_files`: List all custom living context documents.
   - `get_board_context`: Read living project guidelines and standards.
   - `update_board_context`: Enhance or update project documentation.
   - `get_board_cards`: Query columns and task summaries (with column filters).
   - `get_card_details`: Full task specifications, checklists, and activity log.
   - `create_card`: Break down user requests into standardized Kanban cards.
   - `update_card`: Move tasks across columns or modify details.
+  - `assign_card_member`: Assign collaborator to a card.
+  - `unassign_card_member`: Remove collaborator from a card.
   - `add_card_comment`: Post execution updates automatically tagged with `isAiGenerated: true`.
   - `manage_checklist`: Add, toggle, or delete acceptance criteria items.
+  - `create_column`: Create a new column on a board.
+  - `update_column`: Rename or change badge color of a column.
+  - `delete_column`: Delete a column with optional card migration.
+  - `get_review_queue`: Query all tasks across boards awaiting human review and approval.
 
 ---
 

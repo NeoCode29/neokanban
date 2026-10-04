@@ -530,6 +530,98 @@ server.tool('manage_checklist', 'Manages subtasks or acceptance criteria items o
     }
     throw new Error(`Unknown action "${action}"`);
 });
+// 14. Tool: create_column
+server.tool('create_column', 'Creates a new column on a board.', {
+    boardId: zod_1.z.string().describe('The ID of the board'),
+    title: zod_1.z.string().describe('Title of the new column'),
+    colorCode: zod_1.z.string().optional().describe('Hex color code for the column badge, e.g. #8b5cf6'),
+    token: zod_1.z.string().optional().describe('Optional Personal Access Token override'),
+}, async ({ boardId, title, colorCode, token }) => {
+    const data = await apiRequest(`/api/boards/${boardId}/columns`, {
+        method: 'POST',
+        body: { title: title.trim(), colorCode },
+        token,
+    });
+    return {
+        content: [
+            {
+                type: 'text',
+                text: `Column "${data.column.title}" created successfully (ID: ${data.column.id}, Order: ${data.column.order}).`,
+            },
+        ],
+    };
+});
+// 15. Tool: update_column
+server.tool('update_column', 'Updates an existing column title and/or colorCode on a board.', {
+    boardId: zod_1.z.string().describe('The ID of the board'),
+    columnId: zod_1.z.string().describe('The ID of the column to update'),
+    title: zod_1.z.string().describe('New title for the column'),
+    colorCode: zod_1.z.string().optional().describe('New hex color code, e.g. #3b82f6'),
+    token: zod_1.z.string().optional().describe('Optional Personal Access Token override'),
+}, async ({ boardId, columnId, title, colorCode, token }) => {
+    const data = await apiRequest(`/api/boards/${boardId}/columns/${columnId}`, {
+        method: 'PATCH',
+        body: { title: title.trim(), colorCode },
+        token,
+    });
+    return {
+        content: [
+            {
+                type: 'text',
+                text: `Column "${data.column.title}" updated successfully (ID: ${data.column.id}).`,
+            },
+        ],
+    };
+});
+// 16. Tool: delete_column
+server.tool('delete_column', 'Deletes a column from a board. If the column contains cards, specify transferToColumnId to migrate them safely to another column before deletion.', {
+    boardId: zod_1.z.string().describe('The ID of the board'),
+    columnId: zod_1.z.string().describe('The ID of the column to delete'),
+    transferToColumnId: zod_1.z
+        .string()
+        .optional()
+        .describe('Optional ID of target column within the same board to transfer existing cards to'),
+    token: zod_1.z.string().optional().describe('Optional Personal Access Token override'),
+}, async ({ boardId, columnId, transferToColumnId, token }) => {
+    const query = transferToColumnId ? `?transferToColumnId=${transferToColumnId}` : '';
+    const data = await apiRequest(`/api/boards/${boardId}/columns/${columnId}${query}`, {
+        method: 'DELETE',
+        token,
+    });
+    return {
+        content: [
+            {
+                type: 'text',
+                text: `Column ${columnId} deleted successfully. Transferred cards: ${data.transferredCards || 0}.`,
+            },
+        ],
+    };
+});
+// 17. Tool: get_review_queue
+server.tool('get_review_queue', 'Retrieves all tasks across accessible project boards currently in the Review / In Review column awaiting human verification and approval.', {
+    token: zod_1.z.string().optional().describe('Optional Personal Access Token override'),
+}, async ({ token }) => {
+    const data = await apiRequest('/api/reviews', { token });
+    const formatted = data.cards.map((c) => ({
+        id: c.id,
+        title: c.title,
+        priority: c.priority,
+        board: { id: c.column?.board?.id, title: c.column?.board?.title },
+        column: c.column?.title,
+        assignees: (c.assignees || []).map((a) => a.user?.name || a.user?.email),
+        checklistsCompleted: `${(c.checklists || []).filter((i) => i.isCompleted).length}/${(c.checklists || []).length}`,
+        commentsCount: c._count?.comments || 0,
+        updatedAt: c.updatedAt,
+    }));
+    return {
+        content: [
+            {
+                type: 'text',
+                text: JSON.stringify({ total: data.total, cards: formatted }, null, 2),
+            },
+        ],
+    };
+});
 async function run() {
     const transport = new stdio_js_1.StdioServerTransport();
     await server.connect(transport);

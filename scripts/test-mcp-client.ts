@@ -255,8 +255,59 @@ async function main() {
     console.log('✅ ' + unassignResult.content[0].text)
   }
 
+  // 14. Call get_review_queue
+  console.log('\n🛡️ Calling get_review_queue...')
+  const reviewResult: any = await client.callTool({
+    name: 'get_review_queue',
+    arguments: {},
+  })
+  const reviewData = JSON.parse(reviewResult.content[0].text)
+  console.log(`✅ Review Queue returned ${reviewData.total} task(s) awaiting review.`)
+
+  // 15. Call create_column
+  console.log('\n➕ Calling create_column...')
+  const createColResult: any = await client.callTool({
+    name: 'create_column',
+    arguments: {
+      boardId,
+      title: 'QA Automated Column',
+      colorCode: '#ec4899',
+    },
+  })
+  console.log('✅ ' + createColResult.content[0].text)
+
+  // Extract created column ID from response text
+  const match = createColResult.content[0].text.match(/ID: ([a-z0-9]+)/)
+  const createdColId = match ? match[1] : null
+
+  if (createdColId) {
+    // 16. Call update_column
+    console.log('\n✏️ Calling update_column...')
+    const updateColResult: any = await client.callTool({
+      name: 'update_column',
+      arguments: {
+        boardId,
+        columnId: createdColId,
+        title: 'QA Automated Column (Updated)',
+        colorCode: '#10b981',
+      },
+    })
+    console.log('✅ ' + updateColResult.content[0].text)
+
+    // 17. Call delete_column
+    console.log('\n🗑️ Calling delete_column...')
+    const deleteColResult: any = await client.callTool({
+      name: 'delete_column',
+      arguments: {
+        boardId,
+        columnId: createdColId,
+      },
+    })
+    console.log('✅ ' + deleteColResult.content[0].text)
+  }
+
   await client.close()
-  console.log('\n🎉 ALL MCP TOOLS & INTEGRATION TESTS PASSED SUCCESSFULLY!')
+  console.log('\n🎉 ALL 17 MCP TOOLS & INTEGRATION TESTS PASSED SUCCESSFULLY!')
 }
 
 main()
