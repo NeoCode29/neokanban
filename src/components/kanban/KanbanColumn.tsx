@@ -4,7 +4,8 @@ import { useState, useRef, useEffect, useCallback } from 'react'
 import { useDroppable } from '@dnd-kit/core'
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import KanbanCard, { CardData } from './KanbanCard'
-import { Plus, X, Loader2 } from 'lucide-react'
+import { Plus, X, Loader2, MoreHorizontal } from 'lucide-react'
+import ColumnSettingsModal from './ColumnSettingsModal'
 
 export interface ColumnData {
   id: string
@@ -15,19 +16,28 @@ export interface ColumnData {
 }
 
 interface KanbanColumnProps {
+  boardId?: string
   column: ColumnData
+  otherColumns?: ColumnData[]
   onCardClick: (card: CardData) => void
   onAddCard: (columnId: string, title: string) => Promise<void>
+  onColumnUpdated?: (updatedCol: ColumnData) => void
+  onColumnDeleted?: (deletedColumnId: string, transferToColumnId?: string) => void
 }
 
 export default function KanbanColumn({
+  boardId,
   column,
+  otherColumns = [],
   onCardClick,
   onAddCard,
+  onColumnUpdated,
+  onColumnDeleted,
 }: KanbanColumnProps) {
   const [isAdding, setIsAdding] = useState(false)
   const [newTitle, setNewTitle] = useState('')
   const [loading, setLoading] = useState(false)
+  const [showSettingsModal, setShowSettingsModal] = useState(false)
 
   const cardsContainerRef = useRef<HTMLDivElement>(null)
   const cardsEndRef = useRef<HTMLDivElement>(null)
@@ -114,13 +124,25 @@ export default function KanbanColumn({
           </span>
         </div>
 
-        <button
-          onClick={handleOpenAdd}
-          className="p-1 text-neutral-400 hover:text-neutral-700 hover:bg-neutral-200/60 rounded-md transition-colors"
-          title="Add card"
-        >
-          <Plus className="w-3.5 h-3.5" />
-        </button>
+        <div className="flex items-center gap-1">
+          <button
+            onClick={handleOpenAdd}
+            className="p-1 text-neutral-400 hover:text-neutral-700 hover:bg-neutral-200/60 rounded-md transition-colors"
+            title="Add card"
+          >
+            <Plus className="w-3.5 h-3.5" />
+          </button>
+
+          {boardId && (
+            <button
+              onClick={() => setShowSettingsModal(true)}
+              className="p-1 text-neutral-400 hover:text-neutral-700 hover:bg-neutral-200/60 rounded-md transition-colors"
+              title="Column settings"
+            >
+              <MoreHorizontal className="w-3.5 h-3.5" />
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Cards List */}
@@ -192,6 +214,24 @@ export default function KanbanColumn({
           </button>
         </div>
       )}
+
+      {/* Column Settings Modal */}
+      {showSettingsModal && boardId && (
+        <ColumnSettingsModal
+          boardId={boardId}
+          column={column}
+          otherColumns={otherColumns}
+          isOpen={showSettingsModal}
+          onClose={() => setShowSettingsModal(false)}
+          onColumnUpdated={(updated) => {
+            if (onColumnUpdated) onColumnUpdated(updated)
+          }}
+          onColumnDeleted={(delId, transId) => {
+            if (onColumnDeleted) onColumnDeleted(delId, transId)
+          }}
+        />
+      )}
     </div>
   )
 }
+

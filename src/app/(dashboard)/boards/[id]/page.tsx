@@ -147,6 +147,43 @@ export default function BoardPage({ params }: { params: Promise<{ id: string }> 
     })
   }
 
+  const handleColumnUpdated = (updatedColumn: ColumnData) => {
+    setBoard((prev) => {
+      if (!prev) return prev
+      return {
+        ...prev,
+        columns: prev.columns.map((c) =>
+          c.id === updatedColumn.id
+            ? { ...c, title: updatedColumn.title, colorCode: updatedColumn.colorCode }
+            : c
+        ),
+      }
+    })
+  }
+
+  const handleColumnDeleted = (deletedColumnId: string, transferToColumnId?: string) => {
+    setBoard((prev) => {
+      if (!prev) return prev
+      const deletedCol = prev.columns.find((c) => c.id === deletedColumnId)
+      if (transferToColumnId && deletedCol) {
+        return {
+          ...prev,
+          columns: prev.columns
+            .filter((c) => c.id !== deletedColumnId)
+            .map((c) =>
+              c.id === transferToColumnId
+                ? { ...c, cards: [...c.cards, ...deletedCol.cards] }
+                : c
+            ),
+        }
+      }
+      return {
+        ...prev,
+        columns: prev.columns.filter((c) => c.id !== deletedColumnId),
+      }
+    })
+  }
+
   const handleQuickAddTask = async () => {
     if (!board || board.columns.length === 0) return
     const targetCol = board.columns[0]
@@ -383,6 +420,8 @@ export default function BoardPage({ params }: { params: Promise<{ id: string }> 
           onRefresh={fetchBoard}
           onCardAdded={handleCardAdded}
           onColumnAdded={handleColumnAdded}
+          onColumnUpdated={handleColumnUpdated}
+          onColumnDeleted={handleColumnDeleted}
         />
       ) : (
         <ProjectContextView

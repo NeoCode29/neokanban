@@ -25,6 +25,8 @@ interface KanbanBoardProps {
   onRefresh: () => void
   onCardAdded?: (columnId: string, card: CardData) => void
   onColumnAdded?: (column: ColumnData) => void
+  onColumnUpdated?: (column: ColumnData) => void
+  onColumnDeleted?: (columnId: string, transferToColumnId?: string) => void
 }
 
 export default function KanbanBoard({
@@ -34,6 +36,8 @@ export default function KanbanBoard({
   onRefresh,
   onCardAdded,
   onColumnAdded,
+  onColumnUpdated,
+  onColumnDeleted,
 }: KanbanBoardProps) {
   const [columns, setColumns] = useState<ColumnData[]>(initialColumns)
 
@@ -197,6 +201,36 @@ export default function KanbanBoard({
     }
   }
 
+  const handleColumnUpdated = (updated: ColumnData) => {
+    setColumns((prev) =>
+      prev.map((c) =>
+        c.id === updated.id
+          ? { ...c, title: updated.title, colorCode: updated.colorCode }
+          : c
+      )
+    )
+    if (onColumnUpdated) onColumnUpdated(updated)
+    onRefresh()
+  }
+
+  const handleColumnDeleted = (deletedColumnId: string, transferToColumnId?: string) => {
+    setColumns((prev) => {
+      const deletedCol = prev.find((c) => c.id === deletedColumnId)
+      if (transferToColumnId && deletedCol) {
+        return prev
+          .filter((c) => c.id !== deletedColumnId)
+          .map((c) =>
+            c.id === transferToColumnId
+              ? { ...c, cards: [...c.cards, ...deletedCol.cards] }
+              : c
+          )
+      }
+      return prev.filter((c) => c.id !== deletedColumnId)
+    })
+    if (onColumnDeleted) onColumnDeleted(deletedColumnId, transferToColumnId)
+    onRefresh()
+  }
+
   return (
     <DndContext
       sensors={sensors}
@@ -209,9 +243,13 @@ export default function KanbanBoard({
         {columns.map((column) => (
           <KanbanColumn
             key={column.id}
+            boardId={boardId}
             column={column}
+            otherColumns={columns.filter((c) => c.id !== column.id)}
             onCardClick={onCardClick}
             onAddCard={handleAddCard}
+            onColumnUpdated={handleColumnUpdated}
+            onColumnDeleted={handleColumnDeleted}
           />
         ))}
 
