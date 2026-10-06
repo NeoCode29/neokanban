@@ -273,10 +273,12 @@ server.tool('create_card', 'Creates a new task card in a specified column of a b
     title: zod_1.z.string().describe('Title of the task card'),
     description: zod_1.z.string().optional().describe('Markdown description of the task'),
     priority: zod_1.z.enum(['LOW', 'MEDIUM', 'HIGH', 'URGENT']).optional().describe('Task priority'),
+    startDate: zod_1.z.string().optional().describe('Optional start date (ISO or YYYY-MM-DD)'),
+    dueDate: zod_1.z.string().optional().describe('Optional due date (ISO or YYYY-MM-DD)'),
     tags: zod_1.z.array(zod_1.z.string()).optional().describe('List of tag strings, e.g. ["backend", "api"]'),
     assignees: zod_1.z.array(zod_1.z.string()).optional().describe('Optional list of member emails or names to assign to this card'),
     token: zod_1.z.string().optional().describe('Optional Personal Access Token override'),
-}, async ({ boardId, columnTitle, title, description, priority, tags, assignees, token }) => {
+}, async ({ boardId, columnTitle, title, description, priority, startDate, dueDate, tags, assignees, token }) => {
     // 1. Fetch board to get target column ID
     const boardData = await apiRequest(`/api/boards/${boardId}`, { token });
     const targetCol = boardData.board.columns?.find((c) => c.title.toLowerCase() === columnTitle.toLowerCase().trim());
@@ -290,6 +292,8 @@ server.tool('create_card', 'Creates a new task card in a specified column of a b
         body: {
             columnId: targetCol.id,
             title: title.trim(),
+            startDate,
+            dueDate,
         },
         token,
     });
@@ -302,6 +306,8 @@ server.tool('create_card', 'Creates a new task card in a specified column of a b
                 description: description?.trim() || '',
                 priority: priority || 'MEDIUM',
                 tags: tags || [],
+                ...(startDate !== undefined ? { startDate } : {}),
+                ...(dueDate !== undefined ? { dueDate } : {}),
             },
             token,
         });
@@ -348,9 +354,11 @@ server.tool('update_card', 'Updates a task card, including title, description, p
     description: zod_1.z.string().optional().describe('New markdown description'),
     targetColumnTitle: zod_1.z.string().optional().describe('Move to this column, e.g. "Done" or "In Review"'),
     priority: zod_1.z.enum(['LOW', 'MEDIUM', 'HIGH', 'URGENT']).optional().describe('New priority'),
+    startDate: zod_1.z.string().optional().describe('Optional start date (ISO or YYYY-MM-DD)'),
+    dueDate: zod_1.z.string().optional().describe('Optional due date (ISO or YYYY-MM-DD)'),
     tags: zod_1.z.array(zod_1.z.string()).optional().describe('Updated tag list'),
     token: zod_1.z.string().optional().describe('Optional Personal Access Token override'),
-}, async ({ cardId, title, description, targetColumnTitle, priority, tags, token }) => {
+}, async ({ cardId, title, description, targetColumnTitle, priority, startDate, dueDate, tags, token }) => {
     // 1. Move to column if requested
     if (targetColumnTitle) {
         const cardData = await apiRequest(`/api/cards/${cardId}`, { token });
@@ -376,6 +384,8 @@ server.tool('update_card', 'Updates a task card, including title, description, p
             ...(title !== undefined ? { title: title.trim() } : {}),
             ...(description !== undefined ? { description: description.trim() } : {}),
             ...(priority !== undefined ? { priority } : {}),
+            ...(startDate !== undefined ? { startDate } : {}),
+            ...(dueDate !== undefined ? { dueDate } : {}),
             ...(tags !== undefined ? { tags } : {}),
         },
         token,

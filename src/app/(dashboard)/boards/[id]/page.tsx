@@ -12,10 +12,12 @@ import {
   Users,
   Search,
   X,
+  CalendarRange,
 } from 'lucide-react'
 import KanbanBoard from '@/components/kanban/KanbanBoard'
 import CardDetailModal from '@/components/kanban/CardDetailModal'
 import ShareBoardModal from '@/components/kanban/ShareBoardModal'
+import GanttTimelineView from '@/components/kanban/GanttTimelineView'
 import { CardData } from '@/components/kanban/KanbanCard'
 import { ColumnData } from '@/components/kanban/KanbanColumn'
 import ProjectContextView, { ContextDocument } from '@/components/context/ProjectContextView'
@@ -38,7 +40,7 @@ export default function BoardPage({ params }: { params: Promise<{ id: string }> 
 
   const [board, setBoard] = useState<BoardDetail | null>(null)
   const [loading, setLoading] = useState(true)
-  const [activeTab, setActiveTab] = useState<'board' | 'context'>('board')
+  const [activeTab, setActiveTab] = useState<'board' | 'context' | 'timeline'>('board')
   const [activeFilter, setActiveFilter] = useState<string>('all')
   const [searchQuery, setSearchQuery] = useState<string>('')
   const [selectedCardId, setSelectedCardId] = useState<string | null>(null)
@@ -355,6 +357,18 @@ export default function BoardPage({ params }: { params: Promise<{ id: string }> 
             <span>Living Context</span>
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
           </button>
+
+          <button
+            onClick={() => setActiveTab('timeline')}
+            className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold transition-all ${
+              activeTab === 'timeline'
+                ? 'bg-neutral-900 text-white shadow-xs'
+                : 'text-neutral-600 hover:text-neutral-900 hover:bg-neutral-100'
+            }`}
+          >
+            <CalendarRange className="w-3.5 h-3.5" />
+            <span>Timeline</span>
+          </button>
         </div>
       </div>
 
@@ -423,12 +437,19 @@ export default function BoardPage({ params }: { params: Promise<{ id: string }> 
           onColumnUpdated={handleColumnUpdated}
           onColumnDeleted={handleColumnDeleted}
         />
-      ) : (
+      ) : activeTab === 'context' ? (
         <ProjectContextView
           boardId={board.id}
           boardTitle={board.title}
           initialDocuments={board.contextDocuments}
         />
+      ) : (
+        <div className="flex-1 overflow-hidden min-h-[550px]">
+          <GanttTimelineView
+            columns={board.columns}
+            onCardClick={(cardId) => setSelectedCardId(cardId)}
+          />
+        </div>
       )}
 
       {/* 4. Card Detail Modal */}
