@@ -23,6 +23,7 @@ export interface CardData {
   order: number
   priority: 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT'
   tags: string[]
+  startDate?: string | null
   dueDate?: string | null
   createdAt?: string
   assignees?: CardAssigneeData[]

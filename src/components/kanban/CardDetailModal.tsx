@@ -45,6 +45,7 @@ export default function CardDetailModal({
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
   const [priority, setPriority] = useState<'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT'>('MEDIUM')
+  const [startDate, setStartDate] = useState('')
   const [dueDate, setDueDate] = useState('')
   const [tags, setTags] = useState<string[]>([])
   const [tagInput, setTagInput] = useState('')
@@ -84,8 +85,15 @@ export default function CardDetailModal({
           setPriority(c.priority)
           setTags(c.tags || [])
           setColumnName(c.column?.title || 'Board Column')
+          if (c.startDate) {
+            setStartDate(new Date(c.startDate).toISOString().split('T')[0])
+          } else {
+            setStartDate('')
+          }
           if (c.dueDate) {
             setDueDate(new Date(c.dueDate).toISOString().split('T')[0])
+          } else {
+            setDueDate('')
           }
 
           // Fetch board members for assignee selection
@@ -118,6 +126,7 @@ export default function CardDetailModal({
     title: string
     description: string
     priority: 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT'
+    startDate: string
     dueDate: string
     tags: string[]
   }>) => {
@@ -130,6 +139,7 @@ export default function CardDetailModal({
     try {
       const curDesc = overrides?.description !== undefined ? overrides.description : description
       const curPri = overrides?.priority !== undefined ? overrides.priority : priority
+      const curStart = overrides?.startDate !== undefined ? overrides.startDate : startDate
       const curDue = overrides?.dueDate !== undefined ? overrides.dueDate : dueDate
       const curTags = overrides?.tags !== undefined ? overrides.tags : tags
 
@@ -140,6 +150,7 @@ export default function CardDetailModal({
           title: curTitle.trim(),
           description: curDesc,
           priority: curPri,
+          startDate: curStart ? new Date(curStart).toISOString() : null,
           dueDate: curDue ? new Date(curDue).toISOString() : null,
           tags: curTags,
         }),
@@ -564,10 +575,27 @@ export default function CardDetailModal({
                 </select>
               </div>
 
-              {/* Due Date */}
+              {/* Start Date */}
               <div className="space-y-1.5 mb-4">
                 <label className="text-xs text-neutral-500 flex items-center gap-1.5">
                   <Calendar className="w-3.5 h-3.5 text-neutral-400" />
+                  <span>Start Date</span>
+                </label>
+                <input
+                  type="date"
+                  value={startDate}
+                  onChange={(e) => {
+                    setStartDate(e.target.value)
+                    handleSaveDetails({ startDate: e.target.value })
+                  }}
+                  className="w-full bg-white border border-neutral-200 rounded-lg px-2.5 py-1.5 text-xs text-neutral-700 focus:outline-none focus:border-neutral-400 transition-colors"
+                />
+              </div>
+
+              {/* Due Date */}
+              <div className="space-y-1.5 mb-4">
+                <label className="text-xs text-neutral-500 flex items-center gap-1.5">
+                  <Clock className="w-3.5 h-3.5 text-neutral-400" />
                   <span>Due Date</span>
                 </label>
                 <input
