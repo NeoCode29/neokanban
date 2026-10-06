@@ -114,6 +114,7 @@ model Card {
   description String          @default("")
   order       Int             @default(0)
   priority    Priority        @default(MEDIUM)
+  startDate   DateTime?
   dueDate     DateTime?
   tags        String[]        @default([])
   assignees   CardAssignee[]
