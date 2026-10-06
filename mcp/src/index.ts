@@ -374,11 +374,13 @@ server.tool(
     title: z.string().describe('Title of the task card'),
     description: z.string().optional().describe('Markdown description of the task'),
     priority: z.enum(['LOW', 'MEDIUM', 'HIGH', 'URGENT']).optional().describe('Task priority'),
+    startDate: z.string().optional().describe('Optional start date (ISO or YYYY-MM-DD)'),
+    dueDate: z.string().optional().describe('Optional due date (ISO or YYYY-MM-DD)'),
     tags: z.array(z.string()).optional().describe('List of tag strings, e.g. ["backend", "api"]'),
     assignees: z.array(z.string()).optional().describe('Optional list of member emails or names to assign to this card'),
     token: z.string().optional().describe('Optional Personal Access Token override'),
   },
-  async ({ boardId, columnTitle, title, description, priority, tags, assignees, token }) => {
+  async ({ boardId, columnTitle, title, description, priority, startDate, dueDate, tags, assignees, token }) => {
     // 1. Fetch board to get target column ID
     const boardData = await apiRequest<{ board: any }>(`/api/boards/${boardId}`, { token })
     const targetCol = boardData.board.columns?.find(
@@ -398,6 +400,8 @@ server.tool(
       body: {
         columnId: targetCol.id,
         title: title.trim(),
+        startDate,
+        dueDate,
       },
       token,
     })
@@ -412,6 +416,8 @@ server.tool(
           description: description?.trim() || '',
           priority: priority || 'MEDIUM',
           tags: tags || [],
+          ...(startDate !== undefined ? { startDate } : {}),
+          ...(dueDate !== undefined ? { dueDate } : {}),
         },
         token,
       })
@@ -472,10 +478,12 @@ server.tool(
     description: z.string().optional().describe('New markdown description'),
     targetColumnTitle: z.string().optional().describe('Move to this column, e.g. "Done" or "In Review"'),
     priority: z.enum(['LOW', 'MEDIUM', 'HIGH', 'URGENT']).optional().describe('New priority'),
+    startDate: z.string().optional().describe('Optional start date (ISO or YYYY-MM-DD)'),
+    dueDate: z.string().optional().describe('Optional due date (ISO or YYYY-MM-DD)'),
     tags: z.array(z.string()).optional().describe('Updated tag list'),
     token: z.string().optional().describe('Optional Personal Access Token override'),
   },
-  async ({ cardId, title, description, targetColumnTitle, priority, tags, token }) => {
+  async ({ cardId, title, description, targetColumnTitle, priority, startDate, dueDate, tags, token }) => {
     // 1. Move to column if requested
     if (targetColumnTitle) {
       const cardData = await apiRequest<{ card: any }>(`/api/cards/${cardId}`, { token })
@@ -504,6 +512,8 @@ server.tool(
         ...(title !== undefined ? { title: title.trim() } : {}),
         ...(description !== undefined ? { description: description.trim() } : {}),
         ...(priority !== undefined ? { priority } : {}),
+        ...(startDate !== undefined ? { startDate } : {}),
+        ...(dueDate !== undefined ? { dueDate } : {}),
         ...(tags !== undefined ? { tags } : {}),
       },
       token,

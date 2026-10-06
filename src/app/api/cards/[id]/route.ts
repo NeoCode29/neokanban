@@ -61,7 +61,7 @@ export async function PUT(
   }
 
   const { id } = await params
-  const { title, description, priority, dueDate, tags } = await req.json()
+  const { title, description, priority, startDate, dueDate, tags } = await req.json()
 
   try {
     const existing = await prisma.card.findUnique({
@@ -78,12 +78,20 @@ export async function PUT(
       return NextResponse.json({ error: 'Card not found or access denied' }, { status: 404 })
     }
 
+    const targetStartDate = startDate !== undefined ? (startDate ? new Date(startDate) : null) : existing.startDate
+    const targetDueDate = dueDate !== undefined ? (dueDate ? new Date(dueDate) : null) : existing.dueDate
+
+    if (targetStartDate && targetDueDate && targetStartDate > targetDueDate) {
+      return NextResponse.json({ error: 'Start date cannot be after due date' }, { status: 400 })
+    }
+
     const updated = await prisma.card.update({
       where: { id },
       data: {
         ...(title !== undefined ? { title: title.trim() } : {}),
         ...(description !== undefined ? { description } : {}),
         ...(priority !== undefined ? { priority: priority as Priority } : {}),
+        ...(startDate !== undefined ? { startDate: startDate ? new Date(startDate) : null } : {}),
         ...(dueDate !== undefined ? { dueDate: dueDate ? new Date(dueDate) : null } : {}),
         ...(tags !== undefined ? { tags: Array.isArray(tags) ? tags : [] } : {}),
       },

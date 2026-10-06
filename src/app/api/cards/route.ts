@@ -10,10 +10,14 @@ export async function POST(req: Request) {
   }
 
   try {
-    const { columnId, title, description, priority, tags } = await req.json()
+    const { columnId, title, description, priority, tags, startDate, dueDate } = await req.json()
 
     if (!columnId || !title || typeof title !== 'string' || title.trim().length === 0) {
       return NextResponse.json({ error: 'Column ID and title are required' }, { status: 400 })
+    }
+
+    if (startDate && dueDate && new Date(startDate) > new Date(dueDate)) {
+      return NextResponse.json({ error: 'Start date cannot be after due date' }, { status: 400 })
     }
 
     // Verify column exists and user has access to board
@@ -48,6 +52,8 @@ export async function POST(req: Request) {
         priority: (priority as Priority) || Priority.MEDIUM,
         tags: Array.isArray(tags) ? tags : [],
         order,
+        startDate: startDate ? new Date(startDate) : null,
+        dueDate: dueDate ? new Date(dueDate) : null,
       },
       include: {
         checklists: true,
