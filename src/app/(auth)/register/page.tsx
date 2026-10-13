@@ -3,7 +3,8 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { Kanban, ArrowRight, Lock, Mail, User, AlertCircle, Loader2 } from 'lucide-react'
+import { ArrowRight, Lock, Mail, User, AlertCircle, Loader2 } from 'lucide-react'
+import BambooLogo from '@/components/ui/BambooLogo'
 
 export default function RegisterPage() {
   const router = useRouter()
@@ -44,8 +45,8 @@ export default function RegisterPage() {
       <div className="w-full max-w-sm">
         {/* Brand */}
         <div className="flex flex-col items-center mb-6">
-          <div className="w-10 h-10 rounded-xl bg-neutral-900 flex items-center justify-center text-white mb-2.5 shadow-xs">
-            <Kanban className="w-5 h-5" />
+          <div className="mb-2.5">
+            <BambooLogo variant="badge" size={24} badgeSize={44} />
           </div>
           <h1 className="text-xl font-bold tracking-tight text-neutral-900">NeoKanban</h1>
           <p className="text-xs text-neutral-500 mt-0.5">Living Context & AI Kanban Platform</p>
