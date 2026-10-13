@@ -16,6 +16,7 @@ import {
   Plus,
 } from 'lucide-react'
 import CreateBoardModal from '@/components/kanban/CreateBoardModal'
+import BambooLogo from '@/components/ui/BambooLogo'
 
 interface BoardItem {
   id: string
@@ -79,9 +80,7 @@ export default function Sidebar() {
           <div className="h-14 px-4 flex items-center justify-between border-b border-neutral-200/60 shrink-0">
             {!collapsed && (
               <Link href="/" className="flex items-center gap-2.5">
-                <div className="w-7 h-7 rounded-md bg-neutral-900 text-white flex items-center justify-center font-bold text-xs shadow-xs">
-                  ▲
-                </div>
+                <BambooLogo variant="badge" size={16} badgeSize={28} />
                 <span className="font-semibold text-sm text-neutral-900 tracking-tight">
                   NeoKanban
                 </span>
@@ -89,8 +88,8 @@ export default function Sidebar() {
             )}
 
             {collapsed && (
-              <div className="w-7 h-7 mx-auto rounded-md bg-neutral-900 text-white flex items-center justify-center font-bold text-xs shadow-xs">
-                ▲
+              <div className="mx-auto">
+                <BambooLogo variant="badge" size={16} badgeSize={28} />
               </div>
             )}
 
