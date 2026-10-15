@@ -105,7 +105,7 @@ export default function KanbanColumn({
   return (
     <div
       ref={setNodeRef}
-      className={`w-72 sm:w-80 shrink-0 bg-[#f4f5f7] rounded-2xl p-3 flex flex-col max-h-[calc(100vh-12rem)] transition-all ${
+      className={`w-[84vw] sm:w-80 shrink-0 snap-center bg-[#f4f5f7] rounded-2xl p-3 flex flex-col max-h-[calc(100vh-12rem)] transition-all ${
         isOver ? 'ring-2 ring-neutral-300/80 bg-[#edf0f4]' : ''
       }`}
     >

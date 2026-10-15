@@ -108,7 +108,7 @@ export default function DashboardPage() {
   return (
     <div className="space-y-6">
       {/* 1. Header Row */}
-      <div className="flex items-center justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold text-neutral-900 tracking-tight">
             Projects
@@ -120,7 +120,7 @@ export default function DashboardPage() {
 
         <button
           onClick={() => setIsModalOpen(true)}
-          className="bg-neutral-900 hover:bg-neutral-800 text-white px-3.5 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 shadow-sm transition-colors"
+          className="bg-neutral-900 hover:bg-neutral-800 text-white px-3.5 py-2 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 shadow-sm transition-colors w-full sm:w-auto shrink-0"
         >
           <Plus className="w-4 h-4" />
           <span>New project</span>

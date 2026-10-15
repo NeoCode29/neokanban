@@ -43,6 +43,20 @@ export default function GanttTimelineView({ columns, onCardClick }: GanttTimelin
     return startOfDay(base)
   }, [today, windowOffsetDays])
 
+  const windowEndDate = useMemo(() => {
+    const base = new Date(windowStartDate)
+    base.setDate(base.getDate() + totalDays - 1)
+    return base
+  }, [windowStartDate, totalDays])
+
+  const formattedRange = useMemo(() => {
+    const startMonth = windowStartDate.toLocaleDateString('id-ID', { month: 'short', year: 'numeric' })
+    const endMonth = windowEndDate.toLocaleDateString('id-ID', { month: 'short', year: 'numeric' })
+    if (startMonth === endMonth) return startMonth
+    const startM = windowStartDate.toLocaleDateString('id-ID', { month: 'short' })
+    return `${startM} - ${endMonth}`
+  }, [windowStartDate, windowEndDate])
+
   const daysInWindow = useMemo(() => {
     return getDaysInWindow(windowStartDate, totalDays)
   }, [windowStartDate, totalDays])
@@ -112,7 +126,7 @@ export default function GanttTimelineView({ columns, onCardClick }: GanttTimelin
             <ChevronRight className="w-4 h-4" />
           </button>
           <span className="text-xs font-medium text-neutral-600 ml-2">
-            {windowStartDate.toLocaleDateString('id-ID', { month: 'short', year: 'numeric' })}
+            {formattedRange}
           </span>
         </div>
 
@@ -153,8 +167,8 @@ export default function GanttTimelineView({ columns, onCardClick }: GanttTimelin
       {/* 2. Main Dual-Pane Canvas */}
       <div className="flex flex-1 overflow-hidden">
         {/* Left Pane: Task List */}
-        <div className="w-64 sm:w-72 border-r border-neutral-200/80 bg-white flex flex-col shrink-0">
-          <div className="h-10 px-3 flex items-center border-b border-neutral-200/80 bg-neutral-50 text-xs font-semibold text-neutral-500 uppercase tracking-wider">
+        <div className="w-32 sm:w-64 border-r border-neutral-200/80 bg-white flex flex-col shrink-0">
+          <div className="h-10 px-2 sm:px-3 flex items-center border-b border-neutral-200/80 bg-neutral-50 text-[11px] sm:text-xs font-semibold text-neutral-500 uppercase tracking-wider truncate">
             Tugas / Tahapan
           </div>
           <div className="flex-1 overflow-y-auto divide-y divide-neutral-100">
@@ -221,27 +235,31 @@ export default function GanttTimelineView({ columns, onCardClick }: GanttTimelin
                 <div key={column.id} className="py-2">
                   <div className="h-6" /> {/* Spacer untuk header column */}
                   {cards.map(({ card, start, end }) => {
-                    const { left, width } = calculateTaskPosition(start, end, windowStartDate, cellWidth)
+                    const pos = calculateTaskPosition(start, end, windowStartDate, cellWidth, totalDays)
                     return (
                       <div key={card.id} className="h-10 relative flex items-center">
-                        <div
-                          onClick={() => onCardClick(card.id)}
-                          style={{
-                            left: Math.max(left, 0),
-                            width: Math.max(width, cellWidth),
-                          }}
-                          className={`absolute h-7 rounded-md px-2 flex items-center gap-1.5 border shadow-xs cursor-pointer transition hover:opacity-90 overflow-hidden text-xs font-medium ${getStatusColor(
-                            column.title
-                          )}`}
-                          title={`${card.title} (${start.toLocaleDateString()} - ${end.toLocaleDateString()})`}
-                        >
-                          <span className="truncate flex-1">{card.title}</span>
-                          {card.checklists?.length > 0 && (
-                            <span className="text-[10px] bg-white/70 px-1 py-0.5 rounded text-neutral-600 shrink-0">
-                              {card.checklists.filter((c) => c.isCompleted).length}/{card.checklists.length}
-                            </span>
-                          )}
-                        </div>
+                        {pos.isVisible && (
+                          <div
+                            onClick={() => onCardClick(card.id)}
+                            style={{
+                              left: pos.left,
+                              width: pos.width,
+                            }}
+                            className={`absolute h-7 px-2 flex items-center gap-1.5 border shadow-xs cursor-pointer transition hover:opacity-90 overflow-hidden text-xs font-medium ${
+                              pos.isClippedLeft ? 'rounded-l-none border-l-0' : 'rounded-l-md'
+                            } ${
+                              pos.isClippedRight ? 'rounded-r-none border-r-0' : 'rounded-r-md'
+                            } ${getStatusColor(column.title)}`}
+                            title={`${card.title} (${start.toLocaleDateString()} - ${end.toLocaleDateString()})`}
+                          >
+                            <span className="truncate flex-1">{card.title}</span>
+                            {card.checklists?.length > 0 && (
+                              <span className="text-[10px] bg-white/70 px-1 py-0.5 rounded text-neutral-600 shrink-0">
+                                {card.checklists.filter((c) => c.isCompleted).length}/{card.checklists.length}
+                              </span>
+                            )}
+                          </div>
+                        )}
                       </div>
                     )
                   })}
