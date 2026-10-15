@@ -1,8 +1,9 @@
 'use client'
 
 import { useState } from 'react'
-import { X, Settings2, Trash2, Check, AlertTriangle, Loader2, ArrowRight } from 'lucide-react'
+import { X, Settings2, Trash2, Check, AlertTriangle, Loader2, ArrowRight, Lock } from 'lucide-react'
 import { ColumnData } from './KanbanColumn'
+import { isProtectedColumn } from '@/lib/column-utils'
 
 interface ColumnSettingsModalProps {
   boardId: string
@@ -32,6 +33,7 @@ export default function ColumnSettingsModal({
   onColumnUpdated,
   onColumnDeleted,
 }: ColumnSettingsModalProps) {
+  const isProtected = isProtectedColumn(column.title)
   const [activeTab, setActiveTab] = useState<'edit' | 'delete'>('edit')
   const [title, setTitle] = useState(column.title)
   const [colorCode, setColorCode] = useState(column.colorCode || '#64748b')
@@ -112,7 +114,7 @@ export default function ColumnSettingsModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs animate-in fade-in duration-150">
-      <div className="bg-white rounded-2xl shadow-xl border border-neutral-200 w-full max-w-md overflow-hidden">
+      <div className="bg-white rounded-2xl shadow-xl border border-neutral-200 w-[95vw] sm:w-full max-w-md max-h-[90vh] overflow-y-auto">
         {/* Modal Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-neutral-100">
           <div className="flex items-center gap-2">
@@ -149,12 +151,23 @@ export default function ColumnSettingsModal({
             onClick={() => setActiveTab('delete')}
             className={`px-3 py-2 text-xs font-semibold border-b-2 transition-all flex items-center gap-1.5 ${
               activeTab === 'delete'
-                ? 'border-red-600 text-red-600'
-                : 'border-transparent text-neutral-500 hover:text-red-600'
+                ? isProtected
+                  ? 'border-amber-600 text-amber-700'
+                  : 'border-red-600 text-red-600'
+                : 'border-transparent text-neutral-500 hover:text-neutral-800'
             }`}
           >
-            <Trash2 className="w-3.5 h-3.5" />
-            <span>Delete Column</span>
+            {isProtected ? (
+              <>
+                <Lock className="w-3.5 h-3.5 text-amber-600" />
+                <span>Protected Column</span>
+              </>
+            ) : (
+              <>
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>Delete Column</span>
+              </>
+            )}
           </button>
         </div>
 
@@ -226,7 +239,34 @@ export default function ColumnSettingsModal({
         {/* Tab 2: Delete Column */}
         {activeTab === 'delete' && (
           <div className="p-5 space-y-4">
-            {otherColumns.length === 0 ? (
+            {isProtected ? (
+              <div className="space-y-4">
+                <div className="p-4 bg-amber-50/80 border border-amber-200 rounded-xl text-amber-900 text-xs flex items-start gap-3">
+                  <div className="p-2 bg-amber-100 rounded-lg text-amber-800 shrink-0">
+                    <Lock className="w-4 h-4" />
+                  </div>
+                  <div className="space-y-1">
+                    <h4 className="font-semibold text-amber-900 text-xs">Kolom Sistem Terproteksi</h4>
+                    <p className="text-amber-800/90 leading-relaxed text-[11px]">
+                      Kolom <strong className="font-semibold text-amber-950">"{column.title}"</strong> merupakan bagian dari alur kerja standar (<em>Backlog, To Do, In Progress, In Review, Done</em>) yang dilindungi oleh sistem.
+                    </p>
+                    <p className="text-amber-700/80 text-[11px] pt-1.5 border-t border-amber-200/60 mt-1.5">
+                      Kolom ini tidak dapat dihapus untuk menjamin konsistensi alur kerja proyek dan integrasi AI Agent (MCP &amp; Superpowers).
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-end gap-2 pt-2 border-t border-neutral-100">
+                  <button
+                    type="button"
+                    onClick={onClose}
+                    className="px-4 py-2 text-xs font-semibold text-neutral-700 bg-neutral-100 hover:bg-neutral-200/80 rounded-xl transition-colors"
+                  >
+                    Tutup
+                  </button>
+                </div>
+              </div>
+            ) : otherColumns.length === 0 ? (
               <div className="p-4 bg-amber-50 border border-amber-200/80 rounded-xl text-amber-800 text-xs flex items-start gap-2.5">
                 <AlertTriangle className="w-4 h-4 shrink-0 text-amber-600 mt-0.5" />
                 <p>

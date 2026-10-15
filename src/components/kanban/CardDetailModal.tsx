@@ -281,7 +281,7 @@ export default function CardDetailModal({
 
   return (
     <div className="fixed inset-0 z-50 bg-neutral-900/25 backdrop-blur-xs flex items-center justify-center p-3 sm:p-6 overflow-y-auto">
-      <div className="bg-white border border-neutral-200/90 rounded-2xl w-full max-w-4xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-in fade-in zoom-in-95">
+      <div className="bg-white border border-neutral-200/90 rounded-2xl w-[95vw] sm:w-full max-w-4xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-in fade-in zoom-in-95">
         {/* Header Bar */}
         <div className="px-5 py-3 border-b border-neutral-100 flex items-center justify-between gap-3 bg-neutral-50/50">
           <div className="flex items-center gap-2 text-xs text-neutral-500 font-medium">

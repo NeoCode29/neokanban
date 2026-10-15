@@ -180,7 +180,7 @@ export default function ShareBoardModal({
 
   return (
     <div className="fixed inset-0 z-50 bg-neutral-900/30 backdrop-blur-xs flex items-center justify-center p-3 sm:p-6 overflow-y-auto">
-      <div className="bg-white border border-neutral-200/90 rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden flex flex-col animate-in fade-in zoom-in-95">
+      <div className="bg-white border border-neutral-200/90 rounded-2xl w-[95vw] sm:w-full max-w-lg max-h-[90vh] overflow-y-auto shadow-2xl flex flex-col animate-in fade-in zoom-in-95">
         {/* Header */}
         <div className="px-5 py-4 border-b border-neutral-100 flex items-center justify-between bg-neutral-50/50">
           <div className="flex items-center gap-2.5">

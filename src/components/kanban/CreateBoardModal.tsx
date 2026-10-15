@@ -60,7 +60,7 @@ export default function CreateBoardModal({ isOpen, onClose, onCreated }: CreateB
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs animate-in fade-in duration-150">
-      <div className="bg-white rounded-2xl shadow-xl border border-neutral-200 w-full max-w-md overflow-hidden">
+      <div className="bg-white rounded-2xl shadow-xl border border-neutral-200 w-[95vw] sm:w-full max-w-md max-h-[90vh] overflow-y-auto">
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-neutral-100">
           <div className="flex items-center gap-2">
