@@ -120,7 +120,8 @@ export default function KanbanCard({ card, onClick }: KanbanCardProps) {
           {...attributes}
           {...listeners}
           onClick={(e) => e.stopPropagation()}
-          className="text-neutral-300 hover:text-neutral-600 p-0.5 rounded opacity-0 group-hover:opacity-100 transition-opacity cursor-grab active:cursor-grabbing shrink-0"
+          aria-label="Drag to reorder card"
+          className="text-neutral-400 sm:text-neutral-300 hover:text-neutral-600 p-2 sm:p-0.5 -mr-1 -mt-1 sm:mr-0 sm:mt-0 rounded opacity-80 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity cursor-grab active:cursor-grabbing shrink-0 touch-none"
         >
           <GripVertical className="w-3.5 h-3.5" />
         </button>

@@ -491,9 +491,11 @@ export default function BoardPage({ params }: { params: Promise<{ id: string }> 
       {selectedCardId && (
         <CardDetailModal
           cardId={selectedCardId}
+          columns={board.columns}
           onClose={() => setSelectedCardId(null)}
           onCardUpdated={handleCardUpdated}
           onCardDeleted={handleCardDeleted}
+          onCardMoved={() => fetchBoard()}
         />
       )}
 

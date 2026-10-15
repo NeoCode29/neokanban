@@ -15,8 +15,12 @@ execSync('npx tsx scripts/test-board-responsive.ts', { stdio: 'inherit' })
 console.log('\n--- 4. Testing Modals Mobile Viewport ---')
 execSync('npx tsx scripts/test-modals-responsive.ts', { stdio: 'inherit' })
 
+console.log('\n--- 5. Testing CardDetailModal & Drag-and-Drop ---')
+execSync('npx tsx scripts/test-card-modal-and-drag.ts', { stdio: 'inherit' })
+
 // 2. TypeScript compilation check
-console.log('\n--- 5. Verifying TypeScript compilation (tsc --noEmit) ---')
+console.log('\n--- 6. Verifying TypeScript compilation (tsc --noEmit) ---')
 execSync('npx tsc --noEmit', { stdio: 'inherit' })
 
 console.log('\n🎉 ALL RESPONSIVE VERIFICATION CHECKS PASSED!')
+

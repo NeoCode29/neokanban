@@ -23,23 +23,36 @@ import ChecklistSection, { ChecklistItemData } from './ChecklistSection'
 import CommentSection, { CommentData } from './CommentSection'
 import MarkdownViewer from '../ui/MarkdownViewer'
 
+export interface ColumnOption {
+  id: string
+  title: string
+  cards?: any[]
+}
+
 interface CardDetailModalProps {
   cardId: string
+  columns?: ColumnOption[]
   onClose: () => void
   onCardUpdated: (updatedCard: CardData) => void
   onCardDeleted: (cardId: string) => void
+  onCardMoved?: () => void
 }
 
 export default function CardDetailModal({
   cardId,
+  columns,
   onClose,
   onCardUpdated,
   onCardDeleted,
+  onCardMoved,
 }: CardDetailModalProps) {
   const [card, setCard] = useState<CardData | null>(null)
   const [columnName, setColumnName] = useState<string>('')
+  const [columnsList, setColumnsList] = useState<ColumnOption[]>(columns || [])
+  const [mobileTab, setMobileTab] = useState<'content' | 'properties'>('content')
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [movingColumn, setMovingColumn] = useState(false)
   const [savedSuccess, setSavedSuccess] = useState(false)
 
   const [title, setTitle] = useState('')
@@ -50,6 +63,13 @@ export default function CardDetailModal({
   const [tags, setTags] = useState<string[]>([])
   const [tagInput, setTagInput] = useState('')
   const [previewDesc, setPreviewDesc] = useState(false)
+
+  // Sync columns prop if passed or updated
+  useEffect(() => {
+    if (columns && columns.length > 0) {
+      setColumnsList(columns)
+    }
+  }, [columns])
 
   // Assignee states
   const [boardCandidates, setBoardCandidates] = useState<
@@ -96,6 +116,18 @@ export default function CardDetailModal({
             setDueDate('')
           }
 
+          // Fetch board columns if not provided
+          if (c.column?.boardId && (!columns || columns.length === 0)) {
+            fetch(`/api/boards/${c.column.boardId}`)
+              .then((res) => (res.ok ? res.json() : null))
+              .then((bData) => {
+                if (bData?.columns) {
+                  setColumnsList(bData.columns)
+                }
+              })
+              .catch(console.error)
+          }
+
           // Fetch board members for assignee selection
           if (c.column?.boardId) {
             fetch(`/api/boards/${c.column.boardId}/members`)
@@ -121,6 +153,39 @@ export default function CardDetailModal({
       .catch(console.error)
       .finally(() => setLoading(false))
   }, [cardId])
+
+  const handleMoveColumn = async (targetColumnId: string) => {
+    if (!card || card.columnId === targetColumnId) return
+    setMovingColumn(true)
+
+    try {
+      const targetCol = columnsList.find((col) => col.id === targetColumnId)
+      const targetOrder = targetCol?.cards?.length ?? 0
+
+      const res = await fetch(`/api/cards/${cardId}/move`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          targetColumnId,
+          targetOrder,
+        }),
+      })
+
+      if (res.ok) {
+        const nextCard = { ...card, columnId: targetColumnId }
+        setCard(nextCard)
+        setColumnName(targetCol?.title || columnName)
+        onCardUpdated(nextCard)
+        onCardMoved?.()
+        setSavedSuccess(true)
+        setTimeout(() => setSavedSuccess(false), 2000)
+      }
+    } catch (err) {
+      console.error('Failed to move card:', err)
+    } finally {
+      setMovingColumn(false)
+    }
+  }
 
   const handleSaveDetails = async (overrides?: Partial<{
     title: string
@@ -280,28 +345,56 @@ export default function CardDetailModal({
   if (!card) return null
 
   return (
-    <div className="fixed inset-0 z-50 bg-neutral-900/25 backdrop-blur-xs flex items-center justify-center p-3 sm:p-6 overflow-y-auto">
+    <div className="fixed inset-0 z-50 bg-neutral-900/25 backdrop-blur-xs flex items-center justify-center p-2 sm:p-6 overflow-hidden">
       <div className="bg-white border border-neutral-200/90 rounded-2xl w-[95vw] sm:w-full max-w-4xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-in fade-in zoom-in-95">
         {/* Header Bar */}
-        <div className="px-5 py-3 border-b border-neutral-100 flex items-center justify-between gap-3 bg-neutral-50/50">
-          <div className="flex items-center gap-2 text-xs text-neutral-500 font-medium">
-            <Columns className="w-3.5 h-3.5 text-neutral-400" />
-            <span>{columnName}</span>
+        <div className="px-4 sm:px-5 py-3 border-b border-neutral-100 flex items-center justify-between gap-2 sm:gap-3 bg-neutral-50/50 shrink-0">
+          <div className="flex items-center gap-1.5 sm:gap-2 text-xs text-neutral-500 font-medium min-w-0">
+            <Columns className="w-3.5 h-3.5 text-neutral-400 shrink-0" />
+
+            {/* Quick Column Selector Dropdown */}
+            {columnsList.length > 0 ? (
+              <div className="relative inline-flex items-center shrink-0">
+                <select
+                  value={card.columnId}
+                  onChange={(e) => handleMoveColumn(e.target.value)}
+                  disabled={movingColumn}
+                  aria-label="Pindah status kolom"
+                  className="bg-neutral-200/70 hover:bg-neutral-200 text-neutral-800 font-semibold px-2 py-0.5 rounded text-[11px] border border-neutral-300/70 focus:outline-none focus:ring-1 focus:ring-neutral-400 cursor-pointer appearance-none pr-5 transition-colors disabled:opacity-50"
+                >
+                  {columnsList.map((col) => (
+                    <option key={col.id} value={col.id}>
+                      {col.title}
+                    </option>
+                  ))}
+                </select>
+                <span className="pointer-events-none absolute right-1.5 text-[8px] text-neutral-500">▼</span>
+              </div>
+            ) : (
+              <span className="font-semibold text-neutral-700">{columnName}</span>
+            )}
+
             <span className="text-neutral-300">/</span>
-            <span className="text-neutral-700 truncate max-w-xs">{title || 'Untitled Task'}</span>
+            <span className="text-neutral-700 truncate max-w-[110px] sm:max-w-xs">{title || 'Untitled Task'}</span>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1 sm:gap-2 shrink-0">
             {savedSuccess && (
               <span className="text-xs text-emerald-600 font-medium flex items-center gap-1 animate-in fade-in">
                 <Check className="w-3.5 h-3.5" />
-                Saved
+                <span className="hidden sm:inline">Saved</span>
               </span>
             )}
             {saving && (
               <span className="text-xs text-neutral-400 font-medium flex items-center gap-1">
                 <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                Saving...
+                <span className="hidden sm:inline">Saving...</span>
+              </span>
+            )}
+            {movingColumn && (
+              <span className="text-xs text-blue-600 font-medium flex items-center gap-1">
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                <span className="hidden sm:inline">Moving...</span>
               </span>
             )}
 
@@ -323,10 +416,42 @@ export default function CardDetailModal({
           </div>
         </div>
 
+        {/* Mobile Tab Switcher */}
+        <div className="flex md:hidden border-b border-neutral-100 bg-neutral-100/70 p-1 gap-1 shrink-0">
+          <button
+            type="button"
+            onClick={() => setMobileTab('content')}
+            className={`flex-1 py-1.5 px-3 text-xs font-semibold rounded-lg transition-all flex items-center justify-center gap-1.5 ${
+              mobileTab === 'content'
+                ? 'bg-white text-neutral-900 shadow-xs border border-neutral-200/80'
+                : 'text-neutral-500 hover:text-neutral-800'
+            }`}
+          >
+            <FileText className="w-3.5 h-3.5" />
+            <span>Konten & Checklist</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setMobileTab('properties')}
+            className={`flex-1 py-1.5 px-3 text-xs font-semibold rounded-lg transition-all flex items-center justify-center gap-1.5 ${
+              mobileTab === 'properties'
+                ? 'bg-white text-neutral-900 shadow-xs border border-neutral-200/80'
+                : 'text-neutral-500 hover:text-neutral-800'
+            }`}
+          >
+            <Flag className="w-3.5 h-3.5" />
+            <span>Properti & Status</span>
+          </button>
+        </div>
+
         {/* Modal Main Content: 2-Column Notion / Linear Style */}
-        <div className="flex-1 flex flex-col md:flex-row overflow-y-auto">
+        <div className="flex-1 flex flex-col md:flex-row overflow-hidden min-h-0">
           {/* Main Left Pane (Title, Description, Checklist, Activity) */}
-          <div className="flex-1 p-6 space-y-6 overflow-y-auto">
+          <div
+            className={`flex-1 p-5 sm:p-6 space-y-6 overflow-y-auto ${
+              mobileTab === 'content' ? 'block' : 'hidden md:block'
+            }`}
+          >
             {/* Title Input */}
             <div>
               <input
@@ -419,11 +544,41 @@ export default function CardDetailModal({
           </div>
 
           {/* Right Properties Sidebar */}
-          <div className="w-full md:w-64 border-t md:border-t-0 md:border-l border-neutral-100 p-6 space-y-6 bg-[#fafafc]/60 shrink-0">
+          <div
+            className={`w-full md:w-64 border-t md:border-t-0 md:border-l border-neutral-100 p-5 sm:p-6 space-y-6 bg-[#fafafc]/60 shrink-0 overflow-y-auto ${
+              mobileTab === 'properties' ? 'block' : 'hidden md:block'
+            }`}
+          >
             <div>
               <h4 className="text-[11px] font-semibold text-neutral-400 uppercase tracking-wider mb-3">
                 Properties
               </h4>
+
+              {/* Status / Column Quick Move */}
+              <div className="space-y-1.5 mb-4">
+                <label className="text-xs text-neutral-500 flex items-center gap-1.5">
+                  <Columns className="w-3.5 h-3.5 text-neutral-400" />
+                  <span>Kolom / Status</span>
+                </label>
+                {columnsList.length > 0 ? (
+                  <select
+                    value={card.columnId}
+                    onChange={(e) => handleMoveColumn(e.target.value)}
+                    disabled={movingColumn}
+                    className="w-full text-xs font-medium text-neutral-800 bg-white border border-neutral-200 rounded-xl px-2.5 py-2 focus:outline-none focus:border-neutral-400 cursor-pointer disabled:opacity-50"
+                  >
+                    {columnsList.map((col) => (
+                      <option key={col.id} value={col.id}>
+                        {col.title}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <div className="text-xs font-medium text-neutral-700 bg-neutral-100/70 border border-neutral-200 rounded-xl px-2.5 py-1.5">
+                    {columnName}
+                  </div>
+                )}
+              </div>
 
               {/* Assignees (Multiple) */}
               <div className="space-y-1.5 mb-4">
