@@ -5,18 +5,18 @@ import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import {
   LayoutDashboard,
-  FolderKanban,
   CheckSquare,
   KeyRound,
   LogOut,
-  Sparkles,
   PanelLeftClose,
   PanelLeft,
   Star,
   Plus,
+  X,
 } from 'lucide-react'
 import CreateBoardModal from '@/components/kanban/CreateBoardModal'
 import BambooLogo from '@/components/ui/BambooLogo'
+import { useSidebar } from '@/components/layout/SidebarContext'
 
 interface BoardItem {
   id: string
@@ -27,7 +27,8 @@ interface BoardItem {
 export default function Sidebar() {
   const pathname = usePathname()
   const router = useRouter()
-  const [collapsed, setCollapsed] = useState(false)
+  const { isMobileOpen, closeMobile, isCollapsed, toggleCollapsed } = useSidebar()
+
   const [boards, setBoards] = useState<BoardItem[]>([])
   const [reviewCount, setReviewCount] = useState<number>(0)
   const [showCreateModal, setShowCreateModal] = useState(false)
@@ -68,18 +69,21 @@ export default function Sidebar() {
   const favoriteBoards = boards.filter((b) => b.isFavorite)
   const recentBoards = boards.filter((b) => !b.isFavorite).slice(0, 5)
 
-  return (
-    <>
-      <aside
-        className={`h-screen sticky top-0 bg-[#f9fafb] border-r border-neutral-200/80 flex flex-col justify-between transition-all duration-200 z-30 select-none ${
-          collapsed ? 'w-16' : 'w-64'
-        }`}
-      >
-        {/* Top Brand Header */}
+  // Reusable Nav Content
+  const renderNavContent = (isMobile: boolean) => {
+    const collapsed = isMobile ? false : isCollapsed
+
+    return (
+      <div className="flex-1 flex flex-col min-h-0 justify-between">
         <div className="flex-1 flex flex-col min-h-0 overflow-y-auto">
+          {/* Header Brand */}
           <div className="h-14 px-4 flex items-center justify-between border-b border-neutral-200/60 shrink-0">
             {!collapsed && (
-              <Link href="/" className="flex items-center gap-2.5">
+              <Link
+                href="/"
+                onClick={isMobile ? closeMobile : undefined}
+                className="flex items-center gap-2.5"
+              >
                 <BambooLogo variant="badge" size={16} badgeSize={28} />
                 <span className="font-semibold text-sm text-neutral-900 tracking-tight">
                   NeoKanban
@@ -93,13 +97,24 @@ export default function Sidebar() {
               </div>
             )}
 
-            <button
-              onClick={() => setCollapsed(!collapsed)}
-              className="p-1.5 text-neutral-400 hover:text-neutral-700 hover:bg-neutral-200/60 rounded-md transition-colors"
-              title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-            >
-              {collapsed ? <PanelLeft className="w-4 h-4" /> : <PanelLeftClose className="w-4 h-4" />}
-            </button>
+            {isMobile ? (
+              <button
+                onClick={closeMobile}
+                className="p-1.5 text-neutral-400 hover:text-neutral-700 hover:bg-neutral-200/60 rounded-md transition-colors"
+                title="Close sidebar"
+                aria-label="Close sidebar"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            ) : (
+              <button
+                onClick={toggleCollapsed}
+                className="p-1.5 text-neutral-400 hover:text-neutral-700 hover:bg-neutral-200/60 rounded-md transition-colors"
+                title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+              >
+                {collapsed ? <PanelLeft className="w-4 h-4" /> : <PanelLeftClose className="w-4 h-4" />}
+              </button>
+            )}
           </div>
 
           {/* Primary Navigation Items */}
@@ -107,6 +122,7 @@ export default function Sidebar() {
             {/* 1. Dashboard */}
             <Link
               href="/"
+              onClick={isMobile ? closeMobile : undefined}
               className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium transition-colors ${
                 pathname === '/'
                   ? 'bg-neutral-200/70 text-neutral-900 font-semibold'
@@ -121,6 +137,7 @@ export default function Sidebar() {
             {/* 2. Review Queue (Superpowers Never Auto-Done Hub) */}
             <Link
               href="/reviews"
+              onClick={isMobile ? closeMobile : undefined}
               className={`flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium transition-colors ${
                 pathname === '/reviews'
                   ? 'bg-neutral-200/70 text-neutral-900 font-semibold'
@@ -142,6 +159,7 @@ export default function Sidebar() {
             {/* 3. AI Tokens & MCP */}
             <Link
               href="/settings"
+              onClick={isMobile ? closeMobile : undefined}
               className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium transition-colors ${
                 pathname === '/settings'
                   ? 'bg-neutral-200/70 text-neutral-900 font-semibold'
@@ -180,6 +198,7 @@ export default function Sidebar() {
                     <Link
                       key={b.id}
                       href={`/boards/${b.id}`}
+                      onClick={isMobile ? closeMobile : undefined}
                       className={`block truncate px-2.5 py-1.5 rounded-md text-xs transition-colors ${
                         pathname === `/boards/${b.id}`
                           ? 'text-neutral-900 font-semibold bg-neutral-200/70'
@@ -205,6 +224,7 @@ export default function Sidebar() {
                     <Link
                       key={b.id}
                       href={`/boards/${b.id}`}
+                      onClick={isMobile ? closeMobile : undefined}
                       className={`block truncate px-2.5 py-1.5 rounded-md text-xs transition-colors ${
                         pathname === `/boards/${b.id}`
                           ? 'text-neutral-900 font-semibold bg-neutral-200/70'
@@ -258,6 +278,34 @@ export default function Sidebar() {
             </button>
           </div>
         </div>
+      </div>
+    )
+  }
+
+  return (
+    <>
+      {/* 1. Mobile Drawer Navigation (< lg) */}
+      {isMobileOpen && (
+        <div className="lg:hidden fixed inset-0 z-50 flex">
+          {/* Backdrop */}
+          <div
+            onClick={closeMobile}
+            className="fixed inset-0 bg-neutral-900/40 backdrop-blur-xs transition-opacity animate-in fade-in"
+          />
+          {/* Drawer Panel */}
+          <aside className="relative w-72 max-w-[85vw] bg-[#f9fafb] border-r border-neutral-200/80 flex flex-col justify-between shadow-2xl z-10 animate-in slide-in-from-left duration-200 select-none">
+            {renderNavContent(true)}
+          </aside>
+        </div>
+      )}
+
+      {/* 2. Desktop Sticky Sidebar (>= lg) */}
+      <aside
+        className={`hidden lg:flex h-screen sticky top-0 bg-[#f9fafb] border-r border-neutral-200/80 flex-col justify-between transition-all duration-200 z-30 select-none ${
+          isCollapsed ? 'w-16' : 'w-64'
+        }`}
+      >
+        {renderNavContent(false)}
       </aside>
 
       {/* Global Create Board Modal */}
