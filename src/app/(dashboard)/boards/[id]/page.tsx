@@ -246,9 +246,9 @@ export default function BoardPage({ params }: { params: Promise<{ id: string }> 
   return (
     <div className="space-y-6">
       {/* 1. Top Title Row with Black Action Button */}
-      <div className="flex items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <h1 className="text-2xl font-bold text-neutral-900 tracking-tight">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
+        <div className="flex items-center flex-wrap gap-2.5 sm:gap-3">
+          <h1 className="text-xl sm:text-2xl font-bold text-neutral-900 tracking-tight">
             {board.title}
           </h1>
           
@@ -298,10 +298,10 @@ export default function BoardPage({ params }: { params: Promise<{ id: string }> 
         </div>
 
         {/* Right: Primary Action Buttons */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
           <button
             onClick={() => setShowShareModal(true)}
-            className="bg-white hover:bg-neutral-50 text-neutral-700 border border-neutral-200 px-3 py-2 rounded-xl text-xs font-semibold flex items-center gap-1.5 shadow-2xs transition-colors"
+            className="flex-1 sm:flex-initial justify-center bg-white hover:bg-neutral-50 text-neutral-700 border border-neutral-200 px-3 py-2 rounded-xl text-xs font-semibold flex items-center gap-1.5 shadow-2xs transition-colors"
             title="Share board with team"
           >
             <Users className="w-3.5 h-3.5 text-neutral-500" />
@@ -315,7 +315,7 @@ export default function BoardPage({ params }: { params: Promise<{ id: string }> 
 
           <button
             onClick={handleQuickAddTask}
-            className="bg-neutral-900 hover:bg-neutral-800 text-white px-3.5 py-2 rounded-xl text-xs font-semibold flex items-center gap-1.5 shadow-sm transition-colors"
+            className="flex-1 sm:flex-initial justify-center bg-neutral-900 hover:bg-neutral-800 text-white px-3.5 py-2 rounded-xl text-xs font-semibold flex items-center gap-1.5 shadow-sm transition-colors"
           >
             <Plus className="w-4 h-4" />
             <span>New task</span>
@@ -324,11 +324,11 @@ export default function BoardPage({ params }: { params: Promise<{ id: string }> 
       </div>
 
       {/* 2. Tier 1: Primary View Switcher */}
-      <div className="flex items-center justify-between border-b border-neutral-200/80 pb-2">
-        <div className="flex items-center gap-2">
+      <div className="flex items-center justify-between border-b border-neutral-200/80 pb-2 overflow-x-auto no-scrollbar">
+        <div className="flex items-center gap-2 shrink-0">
           <button
             onClick={() => setActiveTab('board')}
-            className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold transition-all ${
+            className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold transition-all shrink-0 ${
               activeTab === 'board'
                 ? 'bg-neutral-900 text-white shadow-xs'
                 : 'text-neutral-600 hover:text-neutral-900 hover:bg-neutral-100'
@@ -347,7 +347,7 @@ export default function BoardPage({ params }: { params: Promise<{ id: string }> 
 
           <button
             onClick={() => setActiveTab('context')}
-            className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold transition-all ${
+            className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold transition-all shrink-0 ${
               activeTab === 'context'
                 ? 'bg-neutral-900 text-white shadow-xs'
                 : 'text-neutral-600 hover:text-neutral-900 hover:bg-neutral-100'
@@ -360,7 +360,7 @@ export default function BoardPage({ params }: { params: Promise<{ id: string }> 
 
           <button
             onClick={() => setActiveTab('timeline')}
-            className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold transition-all ${
+            className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold transition-all shrink-0 ${
               activeTab === 'timeline'
                 ? 'bg-neutral-900 text-white shadow-xs'
                 : 'text-neutral-600 hover:text-neutral-900 hover:bg-neutral-100'
@@ -376,10 +376,10 @@ export default function BoardPage({ params }: { params: Promise<{ id: string }> 
       {activeTab === 'board' && (
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-1">
           {/* Column Filters Pills */}
-          <div className="flex items-center gap-1 p-1 bg-[#eeeff2] rounded-xl w-fit border border-neutral-200/50 overflow-x-auto">
+          <div className="flex items-center gap-1 p-1 bg-[#eeeff2] rounded-xl w-full sm:w-fit border border-neutral-200/50 overflow-x-auto no-scrollbar">
             <button
               onClick={() => setActiveFilter('all')}
-              className={`px-3 py-1 rounded-lg text-xs transition-all ${
+              className={`px-3 py-1 rounded-lg text-xs transition-all shrink-0 ${
                 activeFilter === 'all'
                   ? 'bg-white text-neutral-900 shadow-sm border border-neutral-200/60 font-semibold'
                   : 'text-neutral-500 hover:text-neutral-800 font-medium'
@@ -392,7 +392,7 @@ export default function BoardPage({ params }: { params: Promise<{ id: string }> 
               <button
                 key={col.id}
                 onClick={() => setActiveFilter(col.title)}
-                className={`px-3 py-1 rounded-lg text-xs transition-all ${
+                className={`px-3 py-1 rounded-lg text-xs transition-all shrink-0 ${
                   activeFilter.toLowerCase() === col.title.toLowerCase()
                     ? 'bg-white text-neutral-900 shadow-sm border border-neutral-200/60 font-semibold'
                     : 'text-neutral-500 hover:text-neutral-800 font-medium'
@@ -404,7 +404,7 @@ export default function BoardPage({ params }: { params: Promise<{ id: string }> 
           </div>
 
           {/* Quick Search Cards */}
-          <div className="relative w-full sm:w-64">
+          <div className="relative w-full sm:w-64 shrink-0">
             <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
             <input
               type="text"
