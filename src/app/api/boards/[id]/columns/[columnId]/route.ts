@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { getCurrentUser } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { hasBoardAccess } from '@/lib/board-auth'
+import { isProtectedColumn } from '@/lib/column-utils'
 
 export async function PATCH(
   req: Request,
@@ -85,6 +86,17 @@ export async function DELETE(
     })
     if (!column) {
       return NextResponse.json({ error: 'Column not found' }, { status: 404 })
+    }
+
+    // Safeguard: Check if this column is a protected system column
+    if (isProtectedColumn(column.title)) {
+      return NextResponse.json(
+        {
+          error: `Kolom standar "${column.title}" merupakan kolom sistem yang dilindungi dan tidak dapat dihapus.`,
+          code: 'PROTECTED_COLUMN',
+        },
+        { status: 403 }
+      )
     }
 
     let transferredCards = 0
