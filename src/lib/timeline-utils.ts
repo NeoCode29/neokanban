@@ -4,6 +4,14 @@ export interface CardDateInfo {
   createdAt?: string | Date
 }
 
+export interface TaskPositionResult {
+  left: number
+  width: number
+  isVisible: boolean
+  isClippedLeft: boolean
+  isClippedRight: boolean
+}
+
 export function toDate(val: string | Date | undefined | null): Date | null {
   if (!val) return null
   const d = new Date(val)
@@ -72,23 +80,46 @@ export function calculateTaskPosition(
   taskStart: Date,
   taskEnd: Date,
   windowStart: Date,
-  cellWidth: number
-): { left: number; width: number } {
+  cellWidth: number,
+  totalDays?: number
+): TaskPositionResult {
   const msPerDay = 1000 * 60 * 60 * 24
   const startDay = startOfDay(taskStart)
   const endDay = startOfDay(taskEnd)
   const winStart = startOfDay(windowStart)
+  const winEnd = totalDays ? new Date(winStart.getTime() + totalDays * msPerDay) : null
 
-  const offsetDays = Math.round((startDay.getTime() - winStart.getTime()) / msPerDay)
-  let durationDays = Math.round((endDay.getTime() - startDay.getTime()) / msPerDay)
+  // 1. Cek apakah task sepenuhnya di luar jendela (off-screen)
+  if (endDay.getTime() < winStart.getTime()) {
+    return { left: 0, width: 0, isVisible: false, isClippedLeft: false, isClippedRight: false }
+  }
+  if (winEnd && startDay.getTime() >= winEnd.getTime()) {
+    return { left: 0, width: 0, isVisible: false, isClippedLeft: false, isClippedRight: false }
+  }
 
-  // Minimal 1 hari kalender agar bar terlihat jelas
-  if (durationDays < 1) durationDays = 1
+  // 2. Hitung clamping untuk bagian yang tampak di viewport
+  const isClippedLeft = startDay.getTime() < winStart.getTime()
+  const isClippedRight = winEnd ? endDay.getTime() > winEnd.getTime() : false
+
+  const visibleStart = isClippedLeft ? winStart : startDay
+  const visibleEnd = isClippedRight && winEnd ? winEnd : endDay
+
+  const offsetDays = Math.round((visibleStart.getTime() - winStart.getTime()) / msPerDay)
+  let visibleDays = Math.round((visibleEnd.getTime() - visibleStart.getTime()) / msPerDay)
+
+  // Minimal 1 hari agar bar terlihat jelas jika durasi 0 atau taskStart == taskEnd
+  if (visibleDays < 1) visibleDays = 1
 
   const left = offsetDays * cellWidth
-  const width = durationDays * cellWidth
+  const width = visibleDays * cellWidth
 
-  return { left, width }
+  return {
+    left,
+    width,
+    isVisible: true,
+    isClippedLeft,
+    isClippedRight,
+  }
 }
 
 export function formatHeaderDate(
@@ -100,15 +131,15 @@ export function formatHeaderDate(
 
   if (zoomMode === 'months') {
     return {
-      main: monthNames[date.getMonth()],
-      sub: `${date.getFullYear()}`,
+      main: `${date.getDate()}`,
+      sub: monthNames[date.getMonth()],
     }
   }
 
   if (zoomMode === 'weeks') {
     return {
-      main: `W${getWeekNumber(date)}`,
-      sub: `${date.getDate()} ${monthNames[date.getMonth()]}`,
+      main: `${date.getDate()}`,
+      sub: `W${getWeekNumber(date)}`,
     }
   }
 
