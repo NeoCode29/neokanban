@@ -1,0 +1,58 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 360" width="100%" height="100%">
+  <!-- 1. Warm Canvas Background -->
+  <rect width="760" height="360" fill="#ebe4d6" />
+
+  <g transform="translate(60, 40)">
+    <!-- Red Dot (Japanese Crimson Sun) -->
+    <circle cx="55" cy="210" r="34" fill="#c31d28" />
+
+    <!-- Letter 't' (Tall stem with overhanging crossbar) -->
+    <rect x="110" y="80" width="40" height="180" fill="#042a3e" />
+    <rect x="55" y="112" width="245" height="40" fill="#042a3e" />
+
+    <!-- Letter 'o' (First 'o' with Horizontal Slit) -->
+    <path fill="#042a3e" fill-rule="evenodd" d="
+      M 150 152
+      H 285
+      V 260
+      H 150
+      Z
+
+      M 195 186
+      H 245
+      V 212
+      H 195
+      Z
+    " />
+
+    <!-- Letter 'k' (Stem and Constructivist Diagonal Wedges) -->
+    <rect x="298" y="112" width="40" height="148" fill="#042a3e" />
+    <!-- Upper arm extending high -->
+    <polygon points="338,175 425,112 425,152 365,195" fill="#042a3e" />
+    <!-- Lower wedge foot -->
+    <polygon points="348,188 432,260 348,260" fill="#042a3e" />
+
+    <!-- Letter 'y' (Elevated Block in Top Half with Stem Dropping Down) -->
+    <!-- U-shape top -->
+    <rect x="385" y="45" width="42" height="85" fill="#042a3e" />
+    <rect x="385" y="92" width="138" height="38" fill="#042a3e" />
+    <rect x="481" y="45" width="42" height="85" fill="#042a3e" />
+    <!-- Descending stem -->
+    <rect x="445" y="130" width="42" height="130" fill="#042a3e" />
+
+    <!-- Letter 'o' (Second 'o' with Vertical Slit at Bottom Right) -->
+    <path fill="#042a3e" fill-rule="evenodd" d="
+      M 498 145
+      H 605
+      V 260
+      H 498
+      Z
+
+      M 536 172
+      H 566
+      V 224
+      H 536
+      Z
+    " />
+  </g>
+</svg>

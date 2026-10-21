@@ -1,0 +1,62 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 240" width="100%" height="100%">
+  <!-- Background Warm Canvas -->
+  <rect width="640" height="240" fill="#f4efe6" />
+
+  <g transform="translate(40, 30)">
+    <!-- Red Accent Dot (Constructivist Circle) -->
+    <circle cx="28" cy="120" r="24" fill="#c8102e" />
+
+    <!-- Letter 'n' (Geometric Block) -->
+    <!-- Left vertical stem -->
+    <rect x="70" y="40" width="28" height="110" fill="#062b3f" />
+    <!-- Top horizontal bar -->
+    <rect x="70" y="40" width="80" height="28" fill="#062b3f" />
+    <!-- Right vertical stem -->
+    <rect x="122" y="40" width="28" height="110" fill="#062b3f" />
+
+    <!-- Letter 'e' (Interlocking Rectangular E) -->
+    <!-- Main stem & top arm -->
+    <rect x="160" y="40" width="80" height="28" fill="#062b3f" />
+    <rect x="160" y="40" width="28" height="110" fill="#062b3f" />
+    <!-- Middle arm -->
+    <rect x="160" y="82" width="65" height="26" fill="#062b3f" />
+    <!-- Bottom arm -->
+    <rect x="160" y="122" width="80" height="28" fill="#062b3f" />
+
+    <!-- Letter 'O' (Tall Block with inner cutout) -->
+    <path d="M 252 20 
+             L 342 20 
+             L 342 150 
+             L 252 150 Z 
+             M 280 48 
+             L 314 48 
+             L 314 122 
+             L 280 122 Z" 
+          fill="#062b3f" 
+          fill-rule="evenodd" />
+
+    <!-- Letter 'K' (Interlocking Angular Constructivist) -->
+    <!-- Tall vertical stem -->
+    <rect x="354" y="20" width="28" height="130" fill="#062b3f" />
+    <!-- Upper arm -->
+    <polygon points="382,85 418,20 448,20 400,98" fill="#062b3f" />
+    <!-- Lower leg -->
+    <polygon points="392,88 448,150 415,150 382,108" fill="#062b3f" />
+
+    <!-- Letter 'B' (Interlocking Dual Box) -->
+    <path d="M 460 20 
+             L 535 20 
+             L 535 150 
+             L 460 150 Z 
+             M 488 44 
+             L 510 44 
+             L 510 74 
+             L 488 74 Z 
+             M 488 96 
+             L 510 96 
+             L 510 126 
+             L 488 126 Z" 
+          fill="#062b3f" 
+          fill-rule="evenodd" />
+  </g>
+</svg>

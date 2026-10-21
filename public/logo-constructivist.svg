@@ -1,0 +1,117 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 320" width="100%" height="100%">
+  <defs>
+    <style>
+      .bg-canvas { fill: #f3ece1; }
+      .block-dark { fill: #042738; }
+      .accent-red { fill: #c51928; }
+    </style>
+  </defs>
+
+  <!-- 1. Warm Linen / Paper Background Canvas -->
+  <rect width="800" height="320" class="bg-canvas" />
+
+  <!-- 2. Typographic Group -->
+  <g transform="translate(45, 45)">
+
+    <!-- Red Circle Accent (Tucked neatly under the 'n' overhang) -->
+    <circle cx="50" cy="155" r="32" class="accent-red" />
+
+    <!-- ==================== LETTER 'n' ==================== -->
+    <!-- 'n' features an overhanging roof that extends leftwards over the red circle -->
+    <path class="block-dark" d="
+      M 16 75
+      H 195
+      V 210
+      H 152
+      V 118
+      H 125
+      V 210
+      H 82
+      V 118
+      H 16
+      Z
+    " />
+
+    <!-- ==================== LETTER 'e' ==================== -->
+    <!-- Constructivist 'e': heavy square geometry with a tight horizontal negative slit -->
+    <path class="block-dark" fill-rule="evenodd" d="
+      M 206 75
+      H 318
+      V 210
+      H 206
+      Z
+      
+      M 248 112
+      H 282
+      V 138
+      H 248
+      Z
+      
+      M 248 162
+      H 318
+      V 186
+      H 248
+      Z
+    " />
+
+    <!-- ==================== LETTER 'o' ==================== -->
+    <!-- Heavy boxy 'o' with the signature horizontal slit counter -->
+    <path class="block-dark" fill-rule="evenodd" d="
+      M 328 75
+      H 455
+      V 210
+      H 328
+      Z
+      
+      M 370 125
+      H 413
+      V 152
+      H 370
+      Z
+    " />
+
+    <!-- ==================== LETTER 'K' ==================== -->
+    <!-- Tall constructivist 'k' extending up, with sharp angular wedge leg -->
+    <!-- Vertical stem -->
+    <rect x="466" y="32" width="42" height="178" class="block-dark" />
+    <!-- Upper arm -->
+    <polygon points="508,126 558,32 602,32 534,142" class="block-dark" />
+    <!-- Lower wedge leg (signature constructivist diagonal) -->
+    <polygon points="526,132 612,210 560,210 508,154" class="block-dark" />
+
+    <!-- ==================== LETTER 'B' / 'N' Interlock ==================== -->
+    <!-- Elevated 'n' / 'b' constructivist block -->
+    <!-- The vertical column and nested box -->
+    <path class="block-dark" fill-rule="evenodd" d="
+      M 622 32
+      H 708
+      V 128
+      H 664
+      V 210
+      H 622
+      Z
+
+      M 664 68
+      H 686
+      V 96
+      H 664
+      Z
+    " />
+
+    <!-- Lower block completing the lockup with vertical slit -->
+    <path class="block-dark" fill-rule="evenodd" d="
+      M 672 118
+      H 748
+      V 210
+      H 672
+      Z
+
+      M 698 142
+      H 722
+      V 186
+      H 698
+      Z
+    " />
+
+  </g>
+</svg>
