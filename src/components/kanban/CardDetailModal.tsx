@@ -75,7 +75,7 @@ export default function CardDetailModal({
 
   // Assignee states
   const [boardCandidates, setBoardCandidates] = useState<
-    Array<{ id: string; name: string | null; email: string; avatarUrl?: string | null; role?: string }>
+    Array<{ id: string; name: string | null; email: string; avatarUrl?: string | null; role?: string; isOwner?: boolean }>
   >([])
   const [showAssigneePopover, setShowAssigneePopover] = useState(false)
   const [memberSearch, setMemberSearch] = useState('')
@@ -181,12 +181,12 @@ export default function CardDetailModal({
               .then((res) => (res.ok ? res.json() : null))
               .then((memData) => {
                 if (memData) {
-                  const list: Array<{ id: string; name: string | null; email: string; avatarUrl?: string | null; role?: string }> = []
-                  if (memData.owner) list.push({ ...memData.owner, role: 'OWNER' })
+                  const list: Array<{ id: string; name: string | null; email: string; avatarUrl?: string | null; role?: string; isOwner?: boolean }> = []
+                  if (memData.owner) list.push({ ...memData.owner, role: memData.owner.role || 'FULLSTACK', isOwner: true })
                   if (memData.members) {
                     memData.members.forEach((m: any) => {
                       if (m.user && !list.some((u) => u.id === m.user.id)) {
-                        list.push({ ...m.user, role: m.role || 'COLLABORATOR' })
+                        list.push({ ...m.user, role: m.role || 'COLLABORATOR', isOwner: false })
                       }
                     })
                   }
@@ -729,14 +729,15 @@ export default function CardDetailModal({
                                         <p className="font-medium text-neutral-900 truncate leading-tight">
                                           {m.name || m.email}
                                         </p>
+                                        {m.isOwner && (
+                                          <span className="text-[9px] font-semibold px-1.5 py-0.2 rounded-full border shrink-0 text-emerald-700 bg-emerald-50 border-emerald-200">
+                                            Owner
+                                          </span>
+                                        )}
                                         <span
-                                          className={`text-[9px] font-semibold px-1.5 py-0.2 rounded-full border shrink-0 ${
-                                            m.role === 'OWNER'
-                                              ? 'text-emerald-700 bg-emerald-50 border-emerald-200'
-                                              : getRoleMeta(m.role).color
-                                          }`}
+                                          className={`text-[9px] font-semibold px-1.5 py-0.2 rounded-full border shrink-0 ${getRoleMeta(m.role).color}`}
                                         >
-                                          {m.role === 'OWNER' ? 'Owner' : getRoleMeta(m.role).label}
+                                          {getRoleMeta(m.role).label}
                                         </span>
                                       </div>
                                       <p className="text-[10px] text-neutral-400 truncate leading-tight font-mono">
@@ -766,10 +767,7 @@ export default function CardDetailModal({
                   {card?.assignees && card.assignees.length > 0 ? (
                     card.assignees.map((a) => {
                       const candidate = boardCandidates.find((c) => c.id === a.user.id)
-                      const roleMeta =
-                        candidate?.role === 'OWNER'
-                          ? { label: 'Owner', color: 'text-emerald-700 bg-emerald-50 border-emerald-200' }
-                          : getRoleMeta(candidate?.role)
+                      const roleMeta = getRoleMeta(candidate?.role)
                       return (
                         <span
                           key={a.id || a.userId}
@@ -785,6 +783,11 @@ export default function CardDetailModal({
                           <span className="truncate max-w-[90px] font-medium">
                             {a.user.name || a.user.email.split('@')[0]}
                           </span>
+                          {candidate?.isOwner && (
+                            <span className="text-[8px] font-semibold px-1 rounded-sm border text-emerald-700 bg-emerald-50 border-emerald-200">
+                              Owner
+                            </span>
+                          )}
                           {candidate?.role && (
                             <span className={`text-[8px] font-semibold px-1 rounded-sm border ${roleMeta.color}`}>
                               {roleMeta.label}

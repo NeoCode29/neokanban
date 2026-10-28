@@ -37,23 +37,20 @@ async function runMemberRolesTests() {
     name: 'Owner User',
   })
 
-  // We test the input validation in the route handler
-  const invalidRoleReq = new Request('http://localhost:3000/api/boards/board-123/members/mem-123', {
+  // Invalid role test
+  const invalidRoleReq = new Request('http://localhost:3000/api/boards/board-123/members/owner', {
     method: 'PATCH',
     body: JSON.stringify({ role: 'INVALID_ROLE_NAME' }),
   })
-
-  // Call PATCH route handler with mock params
-  const res = await PATCH(invalidRoleReq, {
-    params: Promise.resolve({ id: 'board-123', memberId: 'mem-123' }),
+  const invalidRes = await PATCH(invalidRoleReq, {
+    params: Promise.resolve({ id: 'board-123', memberId: 'owner' }),
   })
 
-  console.log('  PATCH invalid role response status:', res.status)
-  // Should reject (either 400 for invalid role or 403/404 if db access check runs)
-  if (res.status === 200) {
-    throw new Error('Should not allow 200 on invalid role')
+  console.log('  PATCH invalid role response status:', invalidRes.status)
+  if (invalidRes.status !== 400) {
+    throw new Error(`Expected 400 for invalid role, got ${invalidRes.status}`)
   }
-  console.log('  ✓ Invalid role correctly rejected with status', res.status)
+  console.log('  ✓ Invalid role correctly rejected with status 400')
 
   delete process.env.TEST_AUTH_USER
   console.log('✅ ALL MEMBER ROLE TESTS PASSED SUCCESSFULLY!')
@@ -66,3 +63,4 @@ runMemberRolesTests()
     console.error('❌ Test failed:', err)
     process.exit(1)
   })
+

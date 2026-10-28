@@ -28,6 +28,35 @@ export async function PATCH(
       return NextResponse.json({ error: 'Only the board owner can update member roles' }, { status: 403 })
     }
 
+    // Support setting the Owner's specialization role
+    if (memberId === 'owner' || memberId === access.board.ownerId) {
+      const ownerMember = await prisma.boardMember.upsert({
+        where: {
+          boardId_userId: {
+            boardId,
+            userId: access.board.ownerId,
+          },
+        },
+        update: { role },
+        create: {
+          boardId,
+          userId: access.board.ownerId,
+          role,
+        },
+        include: {
+          user: {
+            select: { id: true, name: true, email: true, avatarUrl: true },
+          },
+        },
+      })
+
+      return NextResponse.json({
+        member: ownerMember,
+        isOwner: true,
+        role: ownerMember.role,
+      })
+    }
+
     const memberRecord = await prisma.boardMember.findUnique({
       where: { id: memberId },
     })

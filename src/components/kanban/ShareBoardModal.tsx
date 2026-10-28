@@ -33,6 +33,7 @@ export interface BoardOwnerData {
   name: string
   email: string
   avatarUrl?: string | null
+  role?: string
 }
 
 interface ShareBoardModalProps {
@@ -80,6 +81,29 @@ export default function ShareBoardModal({
       }
     } catch {
       setErrorMsg('Failed to update role')
+    } finally {
+      setActionLoadingId(null)
+    }
+  }
+
+  const handleUpdateOwnerRole = async (role: string) => {
+    if (!owner) return
+    setActionLoadingId('owner')
+    setErrorMsg(null)
+    try {
+      const res = await fetch(`/api/boards/${boardId}/members/owner`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ role }),
+      })
+      if (res.ok) {
+        setOwner((prev) => (prev ? { ...prev, role } : null))
+      } else {
+        const data = await res.json()
+        setErrorMsg(data.error || 'Failed to update owner role')
+      }
+    } catch {
+      setErrorMsg('Failed to update owner role')
     } finally {
       setActionLoadingId(null)
     }
@@ -314,11 +338,33 @@ export default function ShareBoardModal({
                         {getInitials(owner.name)}
                       </div>
                       <div className="min-w-0">
-                        <div className="flex items-center gap-1.5">
+                        <div className="flex items-center gap-1.5 flex-wrap">
                           <p className="text-xs font-semibold text-neutral-900 truncate">{owner.name}</p>
-                          <span className="text-[10px] font-medium px-1.5 py-0.2 rounded bg-emerald-50 text-emerald-700 border border-emerald-200">
+                          <span className="text-[10px] font-semibold px-1.5 py-0.2 rounded bg-emerald-50 text-emerald-700 border border-emerald-200 shrink-0">
                             Owner
                           </span>
+                          {isOwner ? (
+                            <select
+                              value={owner.role || 'FULLSTACK'}
+                              disabled={actionLoadingId === 'owner'}
+                              onChange={(e) => handleUpdateOwnerRole(e.target.value)}
+                              className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border cursor-pointer focus:outline-none transition-colors ${getRoleMeta(owner.role || 'FULLSTACK').color}`}
+                              title="Set your functional specialization role"
+                            >
+                              {SPECIALIZATION_ROLES.map((r) => (
+                                <option key={r.id} value={r.id}>
+                                  {r.label}
+                                </option>
+                              ))}
+                            </select>
+                          ) : (
+                            <span
+                              className={`inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full border ${getRoleMeta(owner.role || 'FULLSTACK').color}`}
+                            >
+                              <span className={`w-1.5 h-1.5 rounded-full ${getRoleMeta(owner.role || 'FULLSTACK').dotColor}`} />
+                              {getRoleMeta(owner.role || 'FULLSTACK').label}
+                            </span>
+                          )}
                         </div>
                         <p className="text-[11px] text-neutral-400 font-mono truncate">{owner.email}</p>
                       </div>

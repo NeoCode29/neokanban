@@ -40,9 +40,19 @@ export async function GET(
     return NextResponse.json({ error: 'Board not found' }, { status: 404 })
   }
 
+  // Find if owner has a specialization role recorded in board.members
+  const ownerMember = board.members.find((m) => m.userId === board.ownerId)
+  const ownerData = {
+    ...board.owner,
+    role: ownerMember?.role || 'FULLSTACK',
+  }
+
+  // Collaborators exclude the owner record so the owner is not listed twice
+  const collaborators = board.members.filter((m) => m.userId !== board.ownerId)
+
   return NextResponse.json({
-    owner: board.owner,
-    members: board.members,
+    owner: ownerData,
+    members: collaborators,
     isOwner: access.isOwner,
   })
 }
