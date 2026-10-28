@@ -55,3 +55,4 @@ export function getRoleMeta(roleId?: string | null): SpecializationRole {
   const found = SPECIALIZATION_ROLES.find((r) => r.id === roleId)
   return found || SPECIALIZATION_ROLES[4] // default Collaborator
 }
+

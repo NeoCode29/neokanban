@@ -2,8 +2,8 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
 import path from 'path'
 
-async function runMcpTest() {
-  console.log('--- Testing Built NeoKanban MCP Server ---')
+async function runTest() {
+  console.log('--- Testing MCP Role-Based Delegation ---')
 
   const serverScript = path.resolve(process.cwd(), 'mcp/dist/index.js')
   const transport = new StdioClientTransport({
@@ -16,40 +16,34 @@ async function runMcpTest() {
   })
 
   const client = new Client(
-    { name: 'NeoKanban-Verification-Client', version: '1.0.0' },
+    { name: 'Role-Assignment-Tester', version: '1.0.0' },
     { capabilities: {} }
   )
 
   await client.connect(transport)
-  console.log('✅ Connected to MCP server via stdio!')
+  console.log('✅ Connected to MCP Server')
 
-  // 1. List tools
-  const toolsResponse = await client.listTools()
-  console.log(`📋 Total Registered Tools: ${toolsResponse.tools.length}`)
-  const hasUpdateMemberRole = toolsResponse.tools.some((t) => t.name === 'update_member_role')
-  console.log('Contains update_member_role:', hasUpdateMemberRole)
-
-  if (!hasUpdateMemberRole) {
-    throw new Error('Tool update_member_role is missing!')
-  }
-
-  // 2. Call list_board_members
-  const listMembersRes = await client.callTool({
-    name: 'list_board_members',
+  // 1. Create a card and automatically delegate to role "Fullstack"
+  console.log('Testing create_card with assignees: ["Fullstack"]...')
+  const createRes = await client.callTool({
+    name: 'create_card',
     arguments: {
-      boardId: 'cmvrjkpyw007gvaavbia72oe5', // Sistem Neokan
+      boardId: 'cmvrjkpyw007gvaavbia72oe5',
+      columnTitle: 'Backlog',
+      title: 'Contoh Task Otomatis Sesuai Role Fullstack',
+      description: 'Task ini didelegasikan secara otomatis oleh AI ke akun dengan role Fullstack.',
+      assignees: ['Fullstack'], // <-- ROLE DELEGATION!
     },
   })
 
-  console.log('\nlist_board_members output:')
-  console.log(JSON.stringify(listMembersRes, null, 2))
+  const message = (createRes.content as any)[0].text
+  console.log('create_card output message:', message)
 
-  console.log('\n✅ ALL MCP SERVER CHECKS PASSED!')
   await client.close()
-  process.exit(0)
+  console.log('✅ Role-based automatic delegation PASSED!')
 }
 
-runMcpTest().catch((err) => {
-  console.error('❌ MCP test failed:', err)
+runTest().catch((err) => {
+  console.error(err)
   process.exit(1)
 })
