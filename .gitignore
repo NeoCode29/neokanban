@@ -44,3 +44,6 @@ next-env.d.ts
 # local context documentation (ignored from git)
 /.context/
 .context/
+
+# uploads
+/public/uploads/

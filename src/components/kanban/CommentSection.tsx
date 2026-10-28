@@ -1,7 +1,7 @@
 'use client'
 
-import { useState } from 'react'
-import { MessageSquare, Bot, User, Send, FileText, Loader2 } from 'lucide-react'
+import { useState, useRef } from 'react'
+import { MessageSquare, Bot, User, Send, FileText, Loader2, Image as ImageIcon } from 'lucide-react'
 import MarkdownViewer from '../ui/MarkdownViewer'
 
 export interface CommentData {
@@ -25,6 +25,49 @@ export default function CommentSection({
 }: CommentSectionProps) {
   const [content, setContent] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const [uploadingImage, setUploadingImage] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  const handleUploadImageFile = async (file: File) => {
+    if (!file.type.startsWith('image/')) return
+    setUploadingImage(true)
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+      const res = await fetch('/api/upload', {
+        method: 'POST',
+        body: formData,
+      })
+      if (!res.ok) {
+        const err = await res.json()
+        alert(err.error || 'Failed to upload image')
+        return
+      }
+      const data = await res.json()
+      const markdownImg = `\n![${file.name || 'image'}](${data.url})\n`
+      setContent((prev) => (prev ? prev.trimEnd() + '\n' + markdownImg : markdownImg))
+    } catch (err) {
+      console.error('Upload image error:', err)
+      alert('Failed to upload image')
+    } finally {
+      setUploadingImage(false)
+    }
+  }
+
+  const handlePaste = (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+    const items = e.clipboardData?.items
+    if (!items) return
+    for (let i = 0; i < items.length; i++) {
+      if (items[i].type.indexOf('image') !== -1) {
+        const file = items[i].getAsFile()
+        if (file) {
+          e.preventDefault()
+          handleUploadImageFile(file)
+          return
+        }
+      }
+    }
+  }
 
   const standardTemplate = `**Status:** \`[UPDATE]\`
 
@@ -68,14 +111,44 @@ None`
           <MessageSquare className="w-3.5 h-3.5 text-neutral-500" />
           <span>Activity Log</span>
         </h4>
-        <button
-          type="button"
-          onClick={() => setContent((prev) => (prev ? `${prev}\n\n${standardTemplate}` : standardTemplate))}
-          className="text-[11px] text-neutral-600 hover:text-neutral-900 underline flex items-center gap-1"
-        >
-          <FileText className="w-3 h-3" />
-          <span>Insert Log Template</span>
-        </button>
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={uploadingImage}
+            className="text-[11px] text-neutral-600 hover:text-neutral-900 underline flex items-center gap-1 disabled:opacity-50"
+            title="Attach image or paste directly (Ctrl+V)"
+          >
+            {uploadingImage ? (
+              <Loader2 className="w-3 h-3 animate-spin text-neutral-500" />
+            ) : (
+              <ImageIcon className="w-3 h-3 text-neutral-500" />
+            )}
+            <span>{uploadingImage ? 'Uploading...' : 'Attach Image'}</span>
+          </button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            onChange={(e) => {
+              const file = e.target.files?.[0]
+              if (file) {
+                handleUploadImageFile(file)
+                e.target.value = ''
+              }
+            }}
+            className="hidden"
+          />
+
+          <button
+            type="button"
+            onClick={() => setContent((prev) => (prev ? `${prev}\n\n${standardTemplate}` : standardTemplate))}
+            className="text-[11px] text-neutral-600 hover:text-neutral-900 underline flex items-center gap-1"
+          >
+            <FileText className="w-3 h-3" />
+            <span>Insert Log Template</span>
+          </button>
+        </div>
       </div>
 
       {/* Input */}
@@ -83,7 +156,8 @@ None`
         <textarea
           value={content}
           onChange={(e) => setContent(e.target.value)}
-          placeholder="Leave an update or comment..."
+          onPaste={handlePaste}
+          placeholder="Leave an update or comment... (Tip: Paste screenshot with Ctrl+V)"
           rows={3}
           className="w-full bg-neutral-50 border border-neutral-200 rounded-lg p-2.5 text-xs text-neutral-900 placeholder-neutral-400 focus:outline-none focus:border-neutral-900 resize-none font-mono"
         />

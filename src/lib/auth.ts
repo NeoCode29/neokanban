@@ -35,6 +35,14 @@ export async function verifySession(token: string): Promise<{ userId: string } |
 }
 
 export async function getCurrentUser() {
+  if (process.env.TEST_AUTH_USER) {
+    try {
+      return JSON.parse(process.env.TEST_AUTH_USER)
+    } catch {
+      return null
+    }
+  }
+
   try {
     // 1. Check Authorization: Bearer header (for Personal Access Tokens / API / MCP clients)
     const headersList = await headers()

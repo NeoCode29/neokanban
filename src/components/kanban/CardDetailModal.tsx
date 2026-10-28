@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import {
   X,
   Trash2,
@@ -17,6 +17,7 @@ import {
   Columns,
   Users,
   UserPlus,
+  Image as ImageIcon,
 } from 'lucide-react'
 import { CardData, getInitials, getAvatarColor } from './KanbanCard'
 import ChecklistSection, { ChecklistItemData } from './ChecklistSection'
@@ -78,6 +79,51 @@ export default function CardDetailModal({
   const [showAssigneePopover, setShowAssigneePopover] = useState(false)
   const [memberSearch, setMemberSearch] = useState('')
   const [assigningLoading, setAssigningLoading] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const [uploadingImage, setUploadingImage] = useState(false)
+
+  const handleUploadImageFile = async (file: File) => {
+    if (!file.type.startsWith('image/')) return
+    setUploadingImage(true)
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+      const res = await fetch('/api/upload', {
+        method: 'POST',
+        body: formData,
+      })
+      if (!res.ok) {
+        const err = await res.json()
+        alert(err.error || 'Failed to upload image')
+        return
+      }
+      const data = await res.json()
+      const markdownImg = `\n![${file.name || 'image'}](${data.url})\n`
+      const updated = (description ? description.trimEnd() + '\n' : '') + markdownImg
+      setDescription(updated)
+      handleSaveDetails({ description: updated })
+    } catch (err) {
+      console.error('Upload image error:', err)
+      alert('Failed to upload image')
+    } finally {
+      setUploadingImage(false)
+    }
+  }
+
+  const handlePasteDescription = (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+    const items = e.clipboardData?.items
+    if (!items) return
+    for (let i = 0; i < items.length; i++) {
+      if (items[i].type.indexOf('image') !== -1) {
+        const file = items[i].getAsFile()
+        if (file) {
+          e.preventDefault()
+          handleUploadImageFile(file)
+          return
+        }
+      }
+    }
+  }
 
   const standardDescriptionTemplate = `### 🎯 Objective
 [What problem or user feature does this task address?]
@@ -475,6 +521,34 @@ export default function CardDetailModal({
                 <div className="flex items-center gap-2">
                   <button
                     type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={uploadingImage}
+                    className="text-xs text-neutral-600 hover:text-neutral-900 flex items-center gap-1 px-2.5 py-1 rounded-lg bg-neutral-100/80 hover:bg-neutral-100 border border-neutral-200 transition-colors disabled:opacity-50"
+                    title="Upload image or paste (Ctrl+V) directly"
+                  >
+                    {uploadingImage ? (
+                      <Loader2 className="w-3 h-3 animate-spin text-neutral-500" />
+                    ) : (
+                      <ImageIcon className="w-3 h-3 text-neutral-500" />
+                    )}
+                    <span>{uploadingImage ? 'Uploading...' : 'Add Image'}</span>
+                  </button>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0]
+                      if (file) {
+                        handleUploadImageFile(file)
+                        e.target.value = ''
+                      }
+                    }}
+                    className="hidden"
+                  />
+
+                  <button
+                    type="button"
                     onClick={() => {
                       setDescription(standardDescriptionTemplate)
                       handleSaveDetails({ description: standardDescriptionTemplate })
@@ -504,8 +578,9 @@ export default function CardDetailModal({
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   onBlur={() => handleSaveDetails()}
+                  onPaste={handlePasteDescription}
                   rows={6}
-                  placeholder="Describe technical requirements, context, or acceptance criteria..."
+                  placeholder="Describe technical requirements, context, or acceptance criteria... (Tip: You can paste images directly with Ctrl+V)"
                   className="w-full bg-neutral-50/60 border border-neutral-200 rounded-xl p-3.5 text-xs text-neutral-800 placeholder-neutral-400 focus:outline-none focus:border-neutral-400 leading-relaxed resize-y font-mono"
                 />
               )}
