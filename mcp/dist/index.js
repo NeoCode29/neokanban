@@ -72,7 +72,7 @@ server.tool('list_boards', 'Lists all project boards accessible by the authentic
     };
 });
 // 2. Tool: list_board_members
-server.tool('list_board_members', 'Lists the owner and all team collaborators for a project board.', {
+server.tool('list_board_members', 'Lists the owner and all team collaborators for a project board, including their technical specialization roles (e.g. Frontend Specialist, Backend Specialist, Fullstack, Reviewer).', {
     boardId: zod_1.z.string().describe('The ID of the board'),
     token: zod_1.z.string().optional().describe('Optional Personal Access Token override'),
 }, async ({ boardId, token }) => {
@@ -82,12 +82,17 @@ server.tool('list_board_members', 'Lists the owner and all team collaborators fo
             id: data.owner.id,
             name: data.owner.name,
             email: data.owner.email,
-            role: 'OWNER',
+            isOwner: true,
+            specializationRole: data.owner.role || 'FULLSTACK',
+            role: `OWNER (${data.owner.role || 'FULLSTACK'})`,
         },
         ...data.members.map((m) => ({
             id: m.user.id,
+            memberId: m.id,
             name: m.user.name,
             email: m.user.email,
+            isOwner: false,
+            specializationRole: m.role || 'COLLABORATOR',
             role: m.role || 'COLLABORATOR',
         })),
     ];
@@ -316,12 +321,23 @@ server.tool('create_card', 'Creates a new task card in a specified column of a b
     const assignedNames = [];
     if (assignees && assignees.length > 0) {
         const membersData = await apiRequest(`/api/boards/${boardId}/members`, { token });
-        const allMembers = [membersData.owner, ...membersData.members.map((m) => m.user)];
+        const allMembers = [
+            { ...membersData.owner, role: membersData.owner.role || 'FULLSTACK', isOwner: true },
+            ...membersData.members.map((m) => ({
+                ...m.user,
+                role: m.role || 'COLLABORATOR',
+                memberId: m.id,
+                isOwner: false,
+            })),
+        ];
         for (const query of assignees) {
             const clean = query.trim().toLowerCase();
             const matched = allMembers.find((m) => m.id === query ||
                 m.email.toLowerCase() === clean ||
-                (m.name && m.name.toLowerCase().includes(clean)));
+                (m.name && m.name.toLowerCase().includes(clean)) ||
+                (m.role && m.role.toLowerCase() === clean) ||
+                (m.role && m.role.toLowerCase().replace(/_/g, ' ') === clean) ||
+                (clean === 'owner' && m.isOwner));
             if (matched) {
                 try {
                     await apiRequest(`/api/cards/${card.id}/assignees`, {
@@ -400,21 +416,32 @@ server.tool('update_card', 'Updates a task card, including title, description, p
     };
 });
 // 10. Tool: assign_card_member
-server.tool('assign_card_member', 'Assigns/mentions a team member on a card by user email, name, or user ID.', {
+server.tool('assign_card_member', 'Assigns/mentions a team member on a card by user email, name, user ID, or specialization role (e.g. "Reviewer", "Frontend Specialist", "Backend Specialist", "Fullstack", "owner").', {
     cardId: zod_1.z.string().describe('The ID of the card'),
-    member: zod_1.z.string().describe('Email, name, or user ID of the board member to assign'),
+    member: zod_1.z.string().describe('Email, name, user ID, or specialization role of the member to assign (e.g. "Reviewer")'),
     token: zod_1.z.string().optional().describe('Optional Personal Access Token override'),
 }, async ({ cardId, member, token }) => {
     const cardData = await apiRequest(`/api/cards/${cardId}`, { token });
     const boardId = cardData.card.column?.boardId || cardData.card.column?.board?.id;
     const membersData = await apiRequest(`/api/boards/${boardId}/members`, { token });
     const cleanQuery = member.trim().toLowerCase();
-    const allMembers = [membersData.owner, ...membersData.members.map((m) => m.user)];
+    const allMembers = [
+        { ...membersData.owner, role: membersData.owner.role || 'FULLSTACK', isOwner: true },
+        ...membersData.members.map((m) => ({
+            ...m.user,
+            role: m.role || 'COLLABORATOR',
+            memberId: m.id,
+            isOwner: false,
+        })),
+    ];
     const matched = allMembers.find((c) => c.id === member ||
         c.email.toLowerCase() === cleanQuery ||
-        (c.name && c.name.toLowerCase().includes(cleanQuery)));
+        (c.name && c.name.toLowerCase().includes(cleanQuery)) ||
+        (c.role && c.role.toLowerCase() === cleanQuery) ||
+        (c.role && c.role.toLowerCase().replace(/_/g, ' ') === cleanQuery) ||
+        (cleanQuery === 'owner' && c.isOwner));
     if (!matched) {
-        const available = allMembers.map((c) => `${c.name} (${c.email})`).join(', ');
+        const available = allMembers.map((c) => `${c.name} (${c.email} - ${c.role})`).join(', ');
         throw new Error(`Member "${member}" not found in board members. Available members: ${available}`);
     }
     await apiRequest(`/api/cards/${cardId}/assignees`, {
@@ -628,6 +655,80 @@ server.tool('get_review_queue', 'Retrieves all tasks across accessible project b
             {
                 type: 'text',
                 text: JSON.stringify({ total: data.total, cards: formatted }, null, 2),
+            },
+        ],
+    };
+});
+// 18. Tool: update_member_role
+server.tool('update_member_role', 'Updates the technical specialization role of a board member or the board owner. Allowed roles: FRONTEND_SPECIALIST, BACKEND_SPECIALIST, FULLSTACK, REVIEWER, COLLABORATOR.', {
+    boardId: zod_1.z.string().describe('The ID of the board'),
+    member: zod_1.z.string().describe('Email, user ID, member ID, or "owner" to set role for'),
+    role: zod_1.z.enum([
+        'FRONTEND_SPECIALIST',
+        'BACKEND_SPECIALIST',
+        'FULLSTACK',
+        'REVIEWER',
+        'COLLABORATOR',
+    ]).describe('The technical specialization role to assign'),
+    token: zod_1.z.string().optional().describe('Optional Personal Access Token override'),
+}, async ({ boardId, member, role, token }) => {
+    const cleanQuery = member.trim().toLowerCase();
+    if (cleanQuery === 'owner') {
+        await apiRequest(`/api/boards/${boardId}/members/owner`, {
+            method: 'PATCH',
+            body: { role },
+            token,
+        });
+        return {
+            content: [
+                {
+                    type: 'text',
+                    text: `Successfully updated board Owner specialization role to "${role}".`,
+                },
+            ],
+        };
+    }
+    const membersData = await apiRequest(`/api/boards/${boardId}/members`, { token });
+    // Check if member is the owner by id/email
+    if (membersData.owner?.id === member ||
+        membersData.owner?.email?.toLowerCase() === cleanQuery ||
+        membersData.owner?.name?.toLowerCase() === cleanQuery) {
+        await apiRequest(`/api/boards/${boardId}/members/owner`, {
+            method: 'PATCH',
+            body: { role },
+            token,
+        });
+        return {
+            content: [
+                {
+                    type: 'text',
+                    text: `Successfully updated Owner (${membersData.owner.name || membersData.owner.email}) specialization role to "${role}".`,
+                },
+            ],
+        };
+    }
+    // Match collaborator
+    const matched = membersData.members.find((m) => m.id === member ||
+        m.user?.id === member ||
+        m.user?.email?.toLowerCase() === cleanQuery ||
+        (m.user?.name && m.user.name.toLowerCase().includes(cleanQuery)));
+    if (!matched) {
+        const available = [
+            `Owner: ${membersData.owner?.name || membersData.owner?.email}`,
+            ...membersData.members.map((m) => `${m.user?.name} (${m.user?.email})`),
+        ].join(', ');
+        throw new Error(`Member "${member}" not found on board. Available members: ${available}`);
+    }
+    await apiRequest(`/api/boards/${boardId}/members/${matched.id}`, {
+        method: 'PATCH',
+        body: { role },
+        token,
+    });
+    return {
+        content: [
+            {
+                type: 'text',
+                text: `Successfully updated ${matched.user?.name || matched.user?.email} specialization role to "${role}".`,
             },
         ],
     };
