@@ -11,7 +11,11 @@ export async function middleware(request: NextRequest) {
   const token = request.cookies.get('neokanban_session')?.value
 
   const isAuthPage = path === '/login' || path === '/register'
-  const isProtected = path.startsWith('/boards') || path.startsWith('/settings') || path === '/'
+  const isProtected =
+    path === '/' ||
+    path.startsWith('/boards') ||
+    path.startsWith('/settings') ||
+    path.startsWith('/reviews')
 
   let isAuthenticated = false
   if (token) {
@@ -23,14 +27,16 @@ export async function middleware(request: NextRequest) {
     }
   }
 
+  const basePath = request.nextUrl.basePath || ''
+
   // Redirect to dashboard if already logged in and visiting login/register
   if (isAuthPage && isAuthenticated) {
-    return NextResponse.redirect(new URL('/', request.url))
+    return NextResponse.redirect(new URL(basePath || '/', request.url))
   }
 
   // Redirect to login if visiting protected route and not logged in
   if (isProtected && !isAuthenticated) {
-    return NextResponse.redirect(new URL('/login', request.url))
+    return NextResponse.redirect(new URL(`${basePath}/login`, request.url))
   }
 
   return NextResponse.next()
