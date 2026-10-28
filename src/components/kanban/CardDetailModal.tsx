@@ -23,6 +23,7 @@ import { CardData, getInitials, getAvatarColor } from './KanbanCard'
 import ChecklistSection, { ChecklistItemData } from './ChecklistSection'
 import CommentSection, { CommentData } from './CommentSection'
 import MarkdownViewer from '../ui/MarkdownViewer'
+import { getRoleMeta } from '@/lib/member-roles'
 
 export interface ColumnOption {
   id: string
@@ -74,7 +75,7 @@ export default function CardDetailModal({
 
   // Assignee states
   const [boardCandidates, setBoardCandidates] = useState<
-    Array<{ id: string; name: string | null; email: string; avatarUrl?: string | null }>
+    Array<{ id: string; name: string | null; email: string; avatarUrl?: string | null; role?: string }>
   >([])
   const [showAssigneePopover, setShowAssigneePopover] = useState(false)
   const [memberSearch, setMemberSearch] = useState('')
@@ -180,12 +181,12 @@ export default function CardDetailModal({
               .then((res) => (res.ok ? res.json() : null))
               .then((memData) => {
                 if (memData) {
-                  const list: Array<{ id: string; name: string | null; email: string; avatarUrl?: string | null }> = []
-                  if (memData.owner) list.push(memData.owner)
+                  const list: Array<{ id: string; name: string | null; email: string; avatarUrl?: string | null; role?: string }> = []
+                  if (memData.owner) list.push({ ...memData.owner, role: 'OWNER' })
                   if (memData.members) {
                     memData.members.forEach((m: any) => {
                       if (m.user && !list.some((u) => u.id === m.user.id)) {
-                        list.push(m.user)
+                        list.push({ ...m.user, role: m.role || 'COLLABORATOR' })
                       }
                     })
                   }
@@ -715,7 +716,7 @@ export default function CardDetailModal({
                                   onClick={() => handleToggleAssignee(m.id)}
                                   className="w-full flex items-center justify-between px-2 py-1.5 rounded-lg hover:bg-neutral-100 transition-colors text-left text-xs group disabled:opacity-50"
                                 >
-                                  <div className="flex items-center gap-2 min-w-0">
+                                  <div className="flex items-center gap-2 min-w-0 flex-1">
                                     <div
                                       className={`w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold shrink-0 ${getAvatarColor(
                                         m.id
@@ -723,11 +724,22 @@ export default function CardDetailModal({
                                     >
                                       {getInitials(m.name || m.email)}
                                     </div>
-                                    <div className="truncate">
-                                      <p className="font-medium text-neutral-900 truncate leading-tight">
-                                        {m.name || m.email}
-                                      </p>
-                                      <p className="text-[10px] text-neutral-400 truncate leading-tight">
+                                    <div className="truncate flex-1 min-w-0">
+                                      <div className="flex items-center gap-1.5">
+                                        <p className="font-medium text-neutral-900 truncate leading-tight">
+                                          {m.name || m.email}
+                                        </p>
+                                        <span
+                                          className={`text-[9px] font-semibold px-1.5 py-0.2 rounded-full border shrink-0 ${
+                                            m.role === 'OWNER'
+                                              ? 'text-emerald-700 bg-emerald-50 border-emerald-200'
+                                              : getRoleMeta(m.role).color
+                                          }`}
+                                        >
+                                          {m.role === 'OWNER' ? 'Owner' : getRoleMeta(m.role).label}
+                                        </span>
+                                      </div>
+                                      <p className="text-[10px] text-neutral-400 truncate leading-tight font-mono">
                                         {m.email}
                                       </p>
                                     </div>
@@ -752,31 +764,43 @@ export default function CardDetailModal({
                 {/* Assigned Members Chips */}
                 <div className="flex flex-wrap gap-1.5 min-h-[26px]">
                   {card?.assignees && card.assignees.length > 0 ? (
-                    card.assignees.map((a) => (
-                      <span
-                        key={a.id || a.userId}
-                        className="inline-flex items-center gap-1 text-[11px] pl-1 pr-1.5 py-0.5 rounded-full bg-neutral-100 border border-neutral-200/80 text-neutral-800 shadow-2xs"
-                      >
+                    card.assignees.map((a) => {
+                      const candidate = boardCandidates.find((c) => c.id === a.user.id)
+                      const roleMeta =
+                        candidate?.role === 'OWNER'
+                          ? { label: 'Owner', color: 'text-emerald-700 bg-emerald-50 border-emerald-200' }
+                          : getRoleMeta(candidate?.role)
+                      return (
                         <span
-                          className={`w-4 h-4 rounded-full flex items-center justify-center text-[8px] font-bold ${getAvatarColor(
-                            a.user.id
-                          )}`}
+                          key={a.id || a.userId}
+                          className="inline-flex items-center gap-1.5 text-[11px] pl-1 pr-1.5 py-0.5 rounded-full bg-neutral-100 border border-neutral-200/80 text-neutral-800 shadow-2xs"
                         >
-                          {getInitials(a.user.name || a.user.email)}
+                          <span
+                            className={`w-4 h-4 rounded-full flex items-center justify-center text-[8px] font-bold ${getAvatarColor(
+                              a.user.id
+                            )}`}
+                          >
+                            {getInitials(a.user.name || a.user.email)}
+                          </span>
+                          <span className="truncate max-w-[90px] font-medium">
+                            {a.user.name || a.user.email.split('@')[0]}
+                          </span>
+                          {candidate?.role && (
+                            <span className={`text-[8px] font-semibold px-1 rounded-sm border ${roleMeta.color}`}>
+                              {roleMeta.label}
+                            </span>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveAssignee(a.user.id)}
+                            className="hover:text-red-600 text-neutral-400 rounded p-0.5 transition-colors"
+                            title="Remove assignment"
+                          >
+                            <X className="w-2.5 h-2.5" />
+                          </button>
                         </span>
-                        <span className="truncate max-w-[90px] font-medium">
-                          {a.user.name || a.user.email.split('@')[0]}
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveAssignee(a.user.id)}
-                          className="hover:text-red-600 text-neutral-400 rounded p-0.5 transition-colors"
-                          title="Remove assignment"
-                        >
-                          <X className="w-2.5 h-2.5" />
-                        </button>
-                      </span>
-                    ))
+                      )
+                    })
                   ) : (
                     <p className="text-xs text-neutral-400 italic py-0.5">No members assigned</p>
                   )}

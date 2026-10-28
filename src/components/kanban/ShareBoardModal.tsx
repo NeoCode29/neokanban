@@ -13,6 +13,7 @@ import {
   Shield,
   User,
 } from 'lucide-react'
+import { SPECIALIZATION_ROLES, getRoleMeta, SpecializationRoleId } from '@/lib/member-roles'
 
 export interface BoardMemberData {
   id: string
@@ -53,10 +54,36 @@ export default function ShareBoardModal({
   const [loading, setLoading] = useState(true)
 
   const [inviteEmail, setInviteEmail] = useState('')
+  const [inviteRole, setInviteRole] = useState<SpecializationRoleId>('FRONTEND_SPECIALIST')
   const [inviting, setInviting] = useState(false)
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
   const [successMsg, setSuccessMsg] = useState<string | null>(null)
   const [actionLoadingId, setActionLoadingId] = useState<string | null>(null)
+
+  const handleUpdateRole = async (memberId: string, role: string) => {
+    setActionLoadingId(memberId)
+    setErrorMsg(null)
+    try {
+      const res = await fetch(`/api/boards/${boardId}/members/${memberId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ role }),
+      })
+      if (res.ok) {
+        const data = await res.json()
+        setMembers((prev) =>
+          prev.map((m) => (m.id === memberId ? { ...m, role: data.member.role } : m))
+        )
+      } else {
+        const data = await res.json()
+        setErrorMsg(data.error || 'Failed to update role')
+      }
+    } catch {
+      setErrorMsg('Failed to update role')
+    } finally {
+      setActionLoadingId(null)
+    }
+  }
 
   const fetchMembers = async () => {
     try {
@@ -94,7 +121,7 @@ export default function ShareBoardModal({
       const res = await fetch(`/api/boards/${boardId}/members`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: inviteEmail.trim() }),
+        body: JSON.stringify({ email: inviteEmail.trim(), role: inviteRole }),
       })
 
       const data = await res.json()
@@ -212,7 +239,7 @@ export default function ShareBoardModal({
                 <span>Invite Collaborator by Email</span>
               </label>
 
-              <div className="flex items-center gap-2">
+              <div className="flex flex-col sm:flex-row gap-2">
                 <input
                   type="email"
                   required
@@ -221,10 +248,21 @@ export default function ShareBoardModal({
                   placeholder="collaborator@example.com"
                   className="flex-1 bg-neutral-50 border border-neutral-200 rounded-xl px-3 py-2 text-xs text-neutral-900 placeholder-neutral-400 focus:outline-none focus:border-neutral-900 transition-colors font-mono"
                 />
+                <select
+                  value={inviteRole}
+                  onChange={(e) => setInviteRole(e.target.value as SpecializationRoleId)}
+                  className="bg-neutral-50 border border-neutral-200 rounded-xl px-2.5 py-2 text-xs text-neutral-800 font-medium focus:outline-none focus:border-neutral-900 transition-colors cursor-pointer"
+                >
+                  {SPECIALIZATION_ROLES.map((r) => (
+                    <option key={r.id} value={r.id}>
+                      {r.label}
+                    </option>
+                  ))}
+                </select>
                 <button
                   type="submit"
                   disabled={inviting || !inviteEmail.trim()}
-                  className="bg-neutral-900 hover:bg-neutral-800 text-white px-4 py-2 rounded-xl text-xs font-semibold flex items-center gap-1.5 shadow-xs transition-colors disabled:opacity-50 shrink-0"
+                  className="bg-neutral-900 hover:bg-neutral-800 text-white px-4 py-2 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 shadow-xs transition-colors disabled:opacity-50 shrink-0"
                 >
                   {inviting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <UserPlus className="w-3.5 h-3.5" />}
                   <span>Invite</span>
@@ -296,11 +334,27 @@ export default function ShareBoardModal({
                         {getInitials(member.user.name)}
                       </div>
                       <div className="min-w-0">
-                        <div className="flex items-center gap-1.5">
+                        <div className="flex items-center gap-1.5 flex-wrap">
                           <p className="text-xs font-semibold text-neutral-900 truncate">{member.user.name}</p>
-                          <span className="text-[10px] font-medium px-1.5 py-0.2 rounded bg-neutral-100 text-neutral-600 border border-neutral-200">
-                            Collaborator
-                          </span>
+                          {isOwner ? (
+                            <select
+                              value={member.role || 'COLLABORATOR'}
+                              disabled={actionLoadingId === member.id}
+                              onChange={(e) => handleUpdateRole(member.id, e.target.value)}
+                              className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border cursor-pointer focus:outline-none transition-colors ${getRoleMeta(member.role).color}`}
+                            >
+                              {SPECIALIZATION_ROLES.map((r) => (
+                                <option key={r.id} value={r.id}>
+                                  {r.label}
+                                </option>
+                              ))}
+                            </select>
+                          ) : (
+                            <span className={`inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full border ${getRoleMeta(member.role).color}`}>
+                              <span className={`w-1.5 h-1.5 rounded-full ${getRoleMeta(member.role).dotColor}`} />
+                              {getRoleMeta(member.role).label}
+                            </span>
+                          )}
                         </div>
                         <p className="text-[11px] text-neutral-400 font-mono truncate">{member.user.email}</p>
                       </div>

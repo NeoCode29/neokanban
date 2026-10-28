@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { getCurrentUser } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { hasBoardAccess } from '@/lib/board-auth'
+import { SPECIALIZATION_ROLES } from '@/lib/member-roles'
 
 export async function GET(
   _req: Request,
@@ -62,10 +63,14 @@ export async function POST(
   }
 
   try {
-    const { email } = await req.json()
+    const { email, role } = await req.json()
     if (!email || typeof email !== 'string' || !email.trim()) {
       return NextResponse.json({ error: 'Valid email is required' }, { status: 400 })
     }
+
+    const assignedRole = SPECIALIZATION_ROLES.some((r) => r.id === role)
+      ? role
+      : 'COLLABORATOR'
 
     const normalizedEmail = email.trim().toLowerCase()
 
@@ -99,7 +104,7 @@ export async function POST(
       data: {
         boardId,
         userId: targetUser.id,
-        role: 'COLLABORATOR',
+        role: assignedRole,
       },
       include: {
         user: {
