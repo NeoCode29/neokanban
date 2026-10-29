@@ -1,8 +1,13 @@
 "use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 const mcp_js_1 = require("@modelcontextprotocol/sdk/server/mcp.js");
 const stdio_js_1 = require("@modelcontextprotocol/sdk/server/stdio.js");
 const zod_1 = require("zod");
+const fs_1 = __importDefault(require("fs"));
+const path_1 = __importDefault(require("path"));
 const API_BASE_URL = (process.env.NEOKANBAN_API_URL || 'http://localhost:3000').replace(/\/$/, '');
 /**
  * Universal HTTP helper to communicate with the NeoKanban REST API using Bearer PAT tokens.
@@ -729,6 +734,113 @@ server.tool('update_member_role', 'Updates the technical specialization role of 
             {
                 type: 'text',
                 text: `Successfully updated ${matched.user?.name || matched.user?.email} specialization role to "${role}".`,
+            },
+        ],
+    };
+});
+// ============================================================================
+// Tool: list_skills
+// ============================================================================
+server.tool('list_skills', 'Browse the NeoKanban AI Skill Library catalog. Returns available skills, categories, target roles, file manifests, and preset badges.', {
+    category: zod_1.z.string().optional().describe('Filter by category (e.g. "Testing", "Frontend", "Backend", "Security")'),
+    role: zod_1.z.string().optional().describe('Filter by target specialization role (e.g. "FRONTEND_SPECIALIST", "BACKEND_SPECIALIST", "FULLSTACK", "REVIEWER")'),
+    search: zod_1.z.string().optional().describe('Search keyword in skill name, slug, or description'),
+    token: zod_1.z.string().optional().describe('Personal Access Token (optional if NEOKANBAN_PAT is set)'),
+}, async ({ category, role, search, token }) => {
+    const params = new URLSearchParams();
+    if (category)
+        params.append('category', category);
+    if (role)
+        params.append('role', role);
+    if (search)
+        params.append('search', search);
+    const queryString = params.toString() ? `?${params.toString()}` : '';
+    const data = await apiRequest(`/api/skills${queryString}`, { token });
+    return {
+        content: [
+            {
+                type: 'text',
+                text: JSON.stringify(data.skills, null, 2),
+            },
+        ],
+    };
+});
+// ============================================================================
+// Tool: get_board_skills
+// ============================================================================
+server.tool('get_board_skills', 'Get all AI skills active/installed on a specific NeoKanban board.', {
+    boardId: zod_1.z.string().describe('ID of the board'),
+    token: zod_1.z.string().optional().describe('Personal Access Token (optional if NEOKANBAN_PAT is set)'),
+}, async ({ boardId, token }) => {
+    const data = await apiRequest(`/api/boards/${boardId}/skills`, { token });
+    return {
+        content: [
+            {
+                type: 'text',
+                text: JSON.stringify(data.skills, null, 2),
+            },
+        ],
+    };
+});
+// ============================================================================
+// Tool: read_skill_file
+// ============================================================================
+server.tool('read_skill_file', 'Read the contents of a specific file from a skill in the NeoKanban Skill Library (e.g. "SKILL.md", "examples/demo.ts").', {
+    skillId: zod_1.z.string().describe('Skill ID or slug (e.g. "tdd-workflow", "code-review-gate")'),
+    filePath: zod_1.z.string().default('SKILL.md').describe('Relative path of file within skill bundle (default: "SKILL.md")'),
+    token: zod_1.z.string().optional().describe('Personal Access Token (optional if NEOKANBAN_PAT is set)'),
+}, async ({ skillId, filePath, token }) => {
+    const data = await apiRequest(`/api/skills/${skillId}`, { token });
+    if (!data.skill) {
+        throw new Error(`Skill "${skillId}" not found.`);
+    }
+    const cleanPath = (filePath || 'SKILL.md').trim().replace(/^[/\\]+/, '');
+    const file = data.skill.files?.find((f) => f.filePath === cleanPath || f.filePath.endsWith(cleanPath));
+    if (!file) {
+        const availableFiles = data.skill.files?.map((f) => f.filePath).join(', ') || 'none';
+        throw new Error(`File "${cleanPath}" not found in skill "${skillId}". Available files: ${availableFiles}`);
+    }
+    return {
+        content: [
+            {
+                type: 'text',
+                text: file.content,
+            },
+        ],
+    };
+});
+// ============================================================================
+// Tool: install_skill_to_local
+// ============================================================================
+server.tool('install_skill_to_local', 'Download an AI Skill from the NeoKanban Skill Library and write all its files to local disk storage (default: .agents/skills/<skill-slug>/).', {
+    skillId: zod_1.z.string().describe('Skill ID or slug to download and install'),
+    targetDir: zod_1.z.string().optional().describe('Destination directory path. Defaults to ".agents/skills/<skill-slug>"'),
+    token: zod_1.z.string().optional().describe('Personal Access Token (optional if NEOKANBAN_PAT is set)'),
+}, async ({ skillId, targetDir, token }) => {
+    const data = await apiRequest(`/api/skills/${skillId}`, { token });
+    if (!data.skill) {
+        throw new Error(`Skill "${skillId}" not found in library.`);
+    }
+    const skill = data.skill;
+    const resolvedBaseDir = targetDir
+        ? path_1.default.resolve(process.cwd(), targetDir)
+        : path_1.default.resolve(process.cwd(), '.agents', 'skills', skill.slug);
+    if (!skill.files || skill.files.length === 0) {
+        throw new Error(`Skill "${skill.name}" (${skill.slug}) has no files to install.`);
+    }
+    const writtenFiles = [];
+    for (const file of skill.files) {
+        const normalizedRelative = file.filePath.replace(/\\/g, '/').replace(/^\/+/, '');
+        const fullPath = path_1.default.join(resolvedBaseDir, normalizedRelative);
+        await fs_1.default.promises.mkdir(path_1.default.dirname(fullPath), { recursive: true });
+        await fs_1.default.promises.writeFile(fullPath, file.content, 'utf8');
+        writtenFiles.push(normalizedRelative);
+    }
+    return {
+        content: [
+            {
+                type: 'text',
+                text: `Successfully installed skill "${skill.name}" (${skill.slug}) to local disk:\nDirectory: ${resolvedBaseDir}\nFiles written (${writtenFiles.length}):\n${writtenFiles.map((f) => `  - ${f}`).join('\n')}`,
             },
         ],
     };

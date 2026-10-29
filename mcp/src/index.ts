@@ -1,6 +1,8 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { z } from 'zod'
+import fs from 'fs'
+import path from 'path'
 
 const API_BASE_URL = (process.env.NEOKANBAN_API_URL || 'http://localhost:3000').replace(/\/$/, '')
 
@@ -956,6 +958,143 @@ server.tool(
         {
           type: 'text',
           text: `Successfully updated ${matched.user?.name || matched.user?.email} specialization role to "${role}".`,
+        },
+      ],
+    }
+  }
+)
+
+// ============================================================================
+// Tool: list_skills
+// ============================================================================
+server.tool(
+  'list_skills',
+  'Browse the NeoKanban AI Skill Library catalog. Returns available skills, categories, target roles, file manifests, and preset badges.',
+  {
+    category: z.string().optional().describe('Filter by category (e.g. "Testing", "Frontend", "Backend", "Security")'),
+    role: z.string().optional().describe('Filter by target specialization role (e.g. "FRONTEND_SPECIALIST", "BACKEND_SPECIALIST", "FULLSTACK", "REVIEWER")'),
+    search: z.string().optional().describe('Search keyword in skill name, slug, or description'),
+    token: z.string().optional().describe('Personal Access Token (optional if NEOKANBAN_PAT is set)'),
+  },
+  async ({ category, role, search, token }) => {
+    const params = new URLSearchParams()
+    if (category) params.append('category', category)
+    if (role) params.append('role', role)
+    if (search) params.append('search', search)
+
+    const queryString = params.toString() ? `?${params.toString()}` : ''
+    const data = await apiRequest<{ skills: any[] }>(`/api/skills${queryString}`, { token })
+
+    return {
+      content: [
+        {
+          type: 'text',
+          text: JSON.stringify(data.skills, null, 2),
+        },
+      ],
+    }
+  }
+)
+
+// ============================================================================
+// Tool: get_board_skills
+// ============================================================================
+server.tool(
+  'get_board_skills',
+  'Get all AI skills active/installed on a specific NeoKanban board.',
+  {
+    boardId: z.string().describe('ID of the board'),
+    token: z.string().optional().describe('Personal Access Token (optional if NEOKANBAN_PAT is set)'),
+  },
+  async ({ boardId, token }) => {
+    const data = await apiRequest<{ boardId: string; skills: any[] }>(`/api/boards/${boardId}/skills`, { token })
+    return {
+      content: [
+        {
+          type: 'text',
+          text: JSON.stringify(data.skills, null, 2),
+        },
+      ],
+    }
+  }
+)
+
+// ============================================================================
+// Tool: read_skill_file
+// ============================================================================
+server.tool(
+  'read_skill_file',
+  'Read the contents of a specific file from a skill in the NeoKanban Skill Library (e.g. "SKILL.md", "examples/demo.ts").',
+  {
+    skillId: z.string().describe('Skill ID or slug (e.g. "tdd-workflow", "code-review-gate")'),
+    filePath: z.string().default('SKILL.md').describe('Relative path of file within skill bundle (default: "SKILL.md")'),
+    token: z.string().optional().describe('Personal Access Token (optional if NEOKANBAN_PAT is set)'),
+  },
+  async ({ skillId, filePath, token }) => {
+    const data = await apiRequest<{ skill: any }>(`/api/skills/${skillId}`, { token })
+    if (!data.skill) {
+      throw new Error(`Skill "${skillId}" not found.`)
+    }
+
+    const cleanPath = (filePath || 'SKILL.md').trim().replace(/^[/\\]+/, '')
+    const file = data.skill.files?.find((f: any) => f.filePath === cleanPath || f.filePath.endsWith(cleanPath))
+
+    if (!file) {
+      const availableFiles = data.skill.files?.map((f: any) => f.filePath).join(', ') || 'none'
+      throw new Error(`File "${cleanPath}" not found in skill "${skillId}". Available files: ${availableFiles}`)
+    }
+
+    return {
+      content: [
+        {
+          type: 'text',
+          text: file.content,
+        },
+      ],
+    }
+  }
+)
+
+// ============================================================================
+// Tool: install_skill_to_local
+// ============================================================================
+server.tool(
+  'install_skill_to_local',
+  'Download an AI Skill from the NeoKanban Skill Library and write all its files to local disk storage (default: .agents/skills/<skill-slug>/).',
+  {
+    skillId: z.string().describe('Skill ID or slug to download and install'),
+    targetDir: z.string().optional().describe('Destination directory path. Defaults to ".agents/skills/<skill-slug>"'),
+    token: z.string().optional().describe('Personal Access Token (optional if NEOKANBAN_PAT is set)'),
+  },
+  async ({ skillId, targetDir, token }) => {
+    const data = await apiRequest<{ skill: any }>(`/api/skills/${skillId}`, { token })
+    if (!data.skill) {
+      throw new Error(`Skill "${skillId}" not found in library.`)
+    }
+
+    const skill = data.skill
+    const resolvedBaseDir = targetDir
+      ? path.resolve(process.cwd(), targetDir)
+      : path.resolve(process.cwd(), '.agents', 'skills', skill.slug)
+
+    if (!skill.files || skill.files.length === 0) {
+      throw new Error(`Skill "${skill.name}" (${skill.slug}) has no files to install.`)
+    }
+
+    const writtenFiles: string[] = []
+    for (const file of skill.files) {
+      const normalizedRelative = file.filePath.replace(/\\/g, '/').replace(/^\/+/, '')
+      const fullPath = path.join(resolvedBaseDir, normalizedRelative)
+      await fs.promises.mkdir(path.dirname(fullPath), { recursive: true })
+      await fs.promises.writeFile(fullPath, file.content, 'utf8')
+      writtenFiles.push(normalizedRelative)
+    }
+
+    return {
+      content: [
+        {
+          type: 'text',
+          text: `Successfully installed skill "${skill.name}" (${skill.slug}) to local disk:\nDirectory: ${resolvedBaseDir}\nFiles written (${writtenFiles.length}):\n${writtenFiles.map((f) => `  - ${f}`).join('\n')}`,
         },
       ],
     }
