@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
-import { X, FileText, Code2, Download, Copy, Check, Sparkles, FolderTree } from 'lucide-react'
+import { X, FileText, Code2, Download, Copy, Check, Sparkles, FolderTree, Edit3, Trash2 } from 'lucide-react'
 import MarkdownViewer from '@/components/ui/MarkdownViewer'
 import { getRoleMeta } from '@/lib/member-roles'
 import { SkillItem } from './SkillCard'
@@ -17,6 +17,8 @@ interface SkillDetailModalProps {
   isOpen: boolean
   onClose: () => void
   onAddToBoard: (skill: SkillItem) => void
+  onEdit?: (skill: SkillItem) => void
+  onDelete?: (skill: SkillItem) => void
 }
 
 export default function SkillDetailModal({
@@ -24,6 +26,8 @@ export default function SkillDetailModal({
   isOpen,
   onClose,
   onAddToBoard,
+  onEdit,
+  onDelete,
 }: SkillDetailModalProps) {
   const [activeFileIndex, setActiveFileIndex] = useState(0)
   const [files, setFiles] = useState<SkillFileDetail[]>([])
@@ -89,6 +93,30 @@ export default function SkillDetailModal({
           </div>
 
           <div className="flex items-center gap-2">
+            {!skill.isPreset && onEdit && (
+              <button
+                onClick={() => {
+                  onEdit(skill)
+                  onClose()
+                }}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-neutral-700 bg-white border border-neutral-200 rounded-lg hover:bg-neutral-50 transition-colors shadow-xs"
+              >
+                <Edit3 className="w-3.5 h-3.5" />
+                Edit
+              </button>
+            )}
+            {!skill.isPreset && onDelete && (
+              <button
+                onClick={() => {
+                  onDelete(skill)
+                  onClose()
+                }}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-red-600 bg-white border border-red-200 rounded-lg hover:bg-red-50 transition-colors shadow-xs"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                Hapus
+              </button>
+            )}
             <button
               onClick={handleDownloadZip}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-neutral-700 bg-white border border-neutral-200 rounded-lg hover:bg-neutral-50 transition-colors shadow-xs"

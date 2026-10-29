@@ -1,7 +1,7 @@
 'use client'
 
 import React from 'react'
-import { Sparkles, Download, Layers, FolderTree, Plus, ShieldCheck } from 'lucide-react'
+import { Sparkles, Download, Layers, FolderTree, Plus, ShieldCheck, Edit3, Trash2 } from 'lucide-react'
 import { getRoleMeta } from '@/lib/member-roles'
 
 export interface SkillItem {
@@ -22,9 +22,17 @@ interface SkillCardProps {
   skill: SkillItem
   onInspect: (skill: SkillItem) => void
   onAddToBoard: (skill: SkillItem) => void
+  onEdit?: (skill: SkillItem) => void
+  onDelete?: (skill: SkillItem) => void
 }
 
-export default function SkillCard({ skill, onInspect, onAddToBoard }: SkillCardProps) {
+export default function SkillCard({
+  skill,
+  onInspect,
+  onAddToBoard,
+  onEdit,
+  onDelete,
+}: SkillCardProps) {
   const roleMeta = getRoleMeta(skill.targetRole)
   const fileCount = skill._count?.files ?? skill.files?.length ?? 0
   const boardCount = skill._count?.boardSkills ?? 0
@@ -64,14 +72,43 @@ export default function SkillCard({ skill, onInspect, onAddToBoard }: SkillCardP
             </span>
           </div>
 
-          {/* Quick ZIP Export */}
-          <button
-            onClick={handleDownloadZip}
-            title="Download Skill bundle (.ZIP)"
-            className="text-neutral-400 hover:text-neutral-800 p-1.5 rounded-lg hover:bg-neutral-100 transition-colors"
-          >
-            <Download className="w-4 h-4" />
-          </button>
+          {/* Actions */}
+          <div className="flex items-center gap-0.5">
+            {!skill.isPreset && onEdit && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onEdit(skill)
+                }}
+                title="Edit Skill"
+                className="text-neutral-400 hover:text-neutral-800 p-1.5 rounded-lg hover:bg-neutral-100 transition-colors"
+              >
+                <Edit3 className="w-4 h-4" />
+              </button>
+            )}
+
+            {!skill.isPreset && onDelete && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onDelete(skill)
+                }}
+                title="Hapus Skill"
+                className="text-neutral-400 hover:text-red-600 p-1.5 rounded-lg hover:bg-red-50 transition-colors"
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
+            )}
+
+            {/* Quick ZIP Export */}
+            <button
+              onClick={handleDownloadZip}
+              title="Download Skill bundle (.ZIP)"
+              className="text-neutral-400 hover:text-neutral-800 p-1.5 rounded-lg hover:bg-neutral-100 transition-colors"
+            >
+              <Download className="w-4 h-4" />
+            </button>
+          </div>
         </div>
 
         {/* Title & Description */}

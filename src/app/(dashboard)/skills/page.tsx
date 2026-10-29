@@ -6,6 +6,7 @@ import SkillCard, { SkillItem } from '@/components/skills/SkillCard'
 import SkillDetailModal from '@/components/skills/SkillDetailModal'
 import AddToBoardModal from '@/components/skills/AddToBoardModal'
 import UploadSkillModal from '@/components/skills/UploadSkillModal'
+import EditSkillModal from '@/components/skills/EditSkillModal'
 import { SPECIALIZATION_ROLES } from '@/lib/member-roles'
 
 const CATEGORIES = ['All', 'Testing', 'Frontend', 'Backend', 'Security', 'General']
@@ -20,7 +21,26 @@ export default function SkillsPage() {
   // Modals state
   const [inspectSkill, setInspectSkill] = useState<SkillItem | null>(null)
   const [boardTargetSkill, setBoardTargetSkill] = useState<SkillItem | null>(null)
+  const [editTargetSkill, setEditTargetSkill] = useState<SkillItem | null>(null)
   const [showUploadModal, setShowUploadModal] = useState(false)
+
+  const handleDeleteSkill = async (skill: SkillItem) => {
+    if (!confirm(`Apakah Anda yakin ingin menghapus skill "${skill.name}"? Tindakan ini tidak dapat dibatalkan.`)) {
+      return
+    }
+
+    try {
+      const res = await fetch(`/api/skills/${skill.id}`, { method: 'DELETE' })
+      const data = await res.json()
+      if (!res.ok) {
+        alert(data.error || 'Gagal menghapus skill.')
+        return
+      }
+      fetchSkills()
+    } catch (err: any) {
+      alert(`Gagal menghapus: ${err.message}`)
+    }
+  }
 
   const fetchSkills = useCallback(async () => {
     setIsLoading(true)
@@ -187,6 +207,8 @@ export default function SkillsPage() {
                 skill={skill}
                 onInspect={(s) => setInspectSkill(s)}
                 onAddToBoard={(s) => setBoardTargetSkill(s)}
+                onEdit={(s) => setEditTargetSkill(s)}
+                onDelete={(s) => handleDeleteSkill(s)}
               />
             ))}
           </div>
@@ -202,12 +224,21 @@ export default function SkillsPage() {
           setInspectSkill(null)
           setBoardTargetSkill(s)
         }}
+        onEdit={(s) => setEditTargetSkill(s)}
+        onDelete={(s) => handleDeleteSkill(s)}
       />
 
       <AddToBoardModal
         skill={boardTargetSkill}
         isOpen={!!boardTargetSkill}
         onClose={() => setBoardTargetSkill(null)}
+        onSuccess={() => fetchSkills()}
+      />
+
+      <EditSkillModal
+        skill={editTargetSkill}
+        isOpen={!!editTargetSkill}
+        onClose={() => setEditTargetSkill(null)}
         onSuccess={() => fetchSkills()}
       />
 
@@ -222,3 +253,4 @@ export default function SkillsPage() {
     </div>
   )
 }
+
