@@ -26,6 +26,16 @@ interface ExtractedFile {
   content: string
 }
 
+const BINARY_EXTENSIONS = new Set([
+  'png', 'jpg', 'jpeg', 'gif', 'webp', 'ico', 'svg',
+  'pdf', 'zip', 'tar', 'gz', 'rar', '7z', 'bz2',
+  'mp3', 'mp4', 'wav', 'mov', 'avi', 'mkv',
+  'woff', 'woff2', 'eot', 'ttf', 'otf',
+  'exe', 'dll', 'so', 'dylib', 'bin', 'iso', 'node',
+  'pyc', 'class', 'o', 'obj', 'db', 'sqlite', 'sqlite3',
+  'lock'
+])
+
 export default function UploadSkillModal({
   isOpen,
   onClose,
@@ -78,15 +88,32 @@ export default function UploadSkillModal({
       const entries = Object.keys(zip.files)
       for (const relativePath of entries) {
         const entry = zip.files[relativePath]
-        // Skip directory nodes and hidden/macOS meta files
-        if (entry.dir || relativePath.startsWith('__MACOSX') || relativePath.includes('/.')) {
+        const normalized = relativePath.replace(/\\/g, '/')
+        const lower = normalized.toLowerCase()
+        const ext = lower.split('.').pop() || ''
+        const fileName = lower.split('/').pop() || ''
+
+        // Skip directory nodes, hidden files, VCS directories, and binary assets
+        if (
+          entry.dir ||
+          lower.startsWith('__macosx/') ||
+          lower.includes('/.git/') ||
+          lower.startsWith('.git/') ||
+          lower.includes('/node_modules/') ||
+          lower.startsWith('node_modules/') ||
+          fileName.startsWith('.') ||
+          BINARY_EXTENSIONS.has(ext)
+        ) {
           continue
         }
 
-        const content = await entry.async('string')
+        const rawContent = await entry.async('string')
+        // Strip any null bytes (0x00) that can break PostgreSQL UTF-8 encoding
+        const sanitized = rawContent.replace(/\0/g, '')
+
         extracted.push({
-          filePath: relativePath.replace(/^[/\\]+/, ''),
-          content,
+          filePath: normalized.replace(/^[/\\]+/, ''),
+          content: sanitized,
         })
       }
 

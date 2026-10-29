@@ -2,6 +2,11 @@ import { NextResponse } from 'next/server'
 import { getCurrentUser } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 
+// Helper to strip PostgreSQL-incompatible null bytes (0x00)
+function sanitizeUtf8(str: string): string {
+  return typeof str === 'string' ? str.replace(/\0/g, '') : ''
+}
+
 export async function GET(req: Request) {
   try {
     const url = new URL(req.url)
@@ -86,14 +91,27 @@ export async function POST(req: Request) {
           { status: 400 }
         )
       }
-      validatedFiles.push({
-        filePath: f.filePath.trim().replace(/^[/\\]+/, ''),
-        content: typeof f.content === 'string' ? f.content : '',
-      })
+      const cleanPath = sanitizeUtf8(f.filePath.trim().replace(/^[/\\]+/, ''))
+      const cleanContent = sanitizeUtf8(f.content || '')
+      if (cleanPath) {
+        validatedFiles.push({
+          filePath: cleanPath,
+          content: cleanContent,
+        })
+      }
     }
 
+    if (validatedFiles.length === 0) {
+      return NextResponse.json(
+        { error: 'No valid text files found to store' },
+        { status: 400 }
+      )
+    }
+
+    const cleanName = sanitizeUtf8(name.trim())
+
     // Generate slug if not supplied
-    let baseSlug = (slug || name)
+    let baseSlug = (slug || cleanName)
       .toLowerCase()
       .trim()
       .replace(/[^a-z0-9_-]/g, '-')
@@ -110,11 +128,11 @@ export async function POST(req: Request) {
 
     const newSkill = await prisma.skill.create({
       data: {
-        name: name.trim(),
+        name: cleanName,
         slug: finalSlug,
-        description: typeof description === 'string' ? description.trim() : '',
-        category: typeof category === 'string' && category.trim() ? category.trim() : 'General',
-        targetRole: typeof targetRole === 'string' && targetRole.trim() ? targetRole.trim() : 'FULLSTACK',
+        description: sanitizeUtf8(typeof description === 'string' ? description.trim() : ''),
+        category: sanitizeUtf8(typeof category === 'string' && category.trim() ? category.trim() : 'General'),
+        targetRole: sanitizeUtf8(typeof targetRole === 'string' && targetRole.trim() ? targetRole.trim() : 'FULLSTACK'),
         isPreset: false,
         authorId: user.id,
         files: {

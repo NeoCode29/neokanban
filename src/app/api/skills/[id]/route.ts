@@ -2,6 +2,10 @@ import { NextResponse } from 'next/server'
 import { getCurrentUser } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 
+function sanitizeUtf8(str: string): string {
+  return typeof str === 'string' ? str.replace(/\0/g, '') : ''
+}
+
 export async function GET(
   _req: Request,
   { params }: { params: Promise<{ id: string }> }
@@ -80,16 +84,16 @@ export async function PUT(
 
     const updateData: any = {}
     if (typeof name === 'string' && name.trim().length >= 2) {
-      updateData.name = name.trim()
+      updateData.name = sanitizeUtf8(name.trim())
     }
     if (typeof description === 'string') {
-      updateData.description = description.trim()
+      updateData.description = sanitizeUtf8(description.trim())
     }
     if (typeof category === 'string' && category.trim()) {
-      updateData.category = category.trim()
+      updateData.category = sanitizeUtf8(category.trim())
     }
     if (typeof targetRole === 'string' && targetRole.trim()) {
-      updateData.targetRole = targetRole.trim()
+      updateData.targetRole = sanitizeUtf8(targetRole.trim())
     }
 
     // If files are provided, update them
@@ -98,11 +102,13 @@ export async function PUT(
       await prisma.$transaction([
         prisma.skillFile.deleteMany({ where: { skillId: skill.id } }),
         prisma.skillFile.createMany({
-          data: files.map((f: any) => ({
-            skillId: skill.id,
-            filePath: String(f.filePath || '').trim().replace(/^[/\\]+/, ''),
-            content: typeof f.content === 'string' ? f.content : '',
-          })),
+          data: files
+            .map((f: any) => ({
+              skillId: skill.id,
+              filePath: sanitizeUtf8(String(f.filePath || '').trim().replace(/^[/\\]+/, '')),
+              content: sanitizeUtf8(typeof f.content === 'string' ? f.content : ''),
+            }))
+            .filter((f: any) => Boolean(f.filePath)),
         }),
         prisma.skill.update({
           where: { id: skill.id },
@@ -176,3 +182,4 @@ export async function DELETE(
     )
   }
 }
+
