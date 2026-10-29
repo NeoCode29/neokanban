@@ -24,6 +24,8 @@ import {
   AlertCircle,
 } from 'lucide-react'
 import MarkdownViewer from '../ui/MarkdownViewer'
+import Link from 'next/link'
+import { getRoleMeta } from '@/lib/member-roles'
 
 export interface ContextDocument {
   id: string
@@ -82,6 +84,37 @@ export default function ProjectContextView({
   const [docToDelete, setDocToDelete] = useState<ContextDocument | null>(null)
   const [deleting, setDeleting] = useState(false)
 
+  // Installed AI Skills state
+  const [installedSkills, setInstalledSkills] = useState<any[]>([])
+  const [loadingSkills, setLoadingSkills] = useState(false)
+
+  const fetchInstalledSkills = useCallback(async () => {
+    try {
+      setLoadingSkills(true)
+      const res = await fetch(`/api/boards/${boardId}/skills`)
+      if (res.ok) {
+        const data = await res.json()
+        setInstalledSkills(data.skills || [])
+      }
+    } catch (err) {
+      console.error('Failed to fetch board skills:', err)
+    } finally {
+      setLoadingSkills(false)
+    }
+  }, [boardId])
+
+  const handleDetachSkill = async (skillId: string, skillName: string) => {
+    if (!confirm(`Detach skill "${skillName}" from this board?`)) return
+    try {
+      const res = await fetch(`/api/boards/${boardId}/skills/${skillId}`, { method: 'DELETE' })
+      if (res.ok) {
+        setInstalledSkills((prev) => prev.filter((s) => s.id !== skillId && s.slug !== skillId))
+      }
+    } catch (err) {
+      console.error('Failed to detach skill:', err)
+    }
+  }
+
   // Fetch documents if not provided
   const fetchDocuments = useCallback(async () => {
     try {
@@ -106,7 +139,8 @@ export default function ProjectContextView({
     if (!initialDocuments || initialDocuments.length === 0) {
       fetchDocuments()
     }
-  }, [boardId, initialDocuments, fetchDocuments])
+    fetchInstalledSkills()
+  }, [boardId, initialDocuments, fetchDocuments, fetchInstalledSkills])
 
   // Active document object
   const activeDoc = useMemo(() => {
@@ -508,6 +542,81 @@ export default function ProjectContextView({
                   </div>
                 )
               })
+            )}
+          </div>
+
+          {/* Installed AI Skills Section */}
+          <div className="border-t border-neutral-200/80 p-3 space-y-2 bg-[#fcfcfd]">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1.5">
+                <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+                <span className="text-[11px] font-semibold uppercase tracking-wider text-neutral-600">
+                  AI Skills ({installedSkills.length})
+                </span>
+              </div>
+              <Link
+                href="/skills"
+                className="text-[10px] text-blue-600 hover:text-blue-700 font-medium flex items-center gap-0.5 hover:underline"
+                title="Browse AI Agent Skill Library"
+              >
+                <span>Library</span>
+                <ExternalLink className="w-2.5 h-2.5" />
+              </Link>
+            </div>
+
+            {loadingSkills ? (
+              <div className="py-2 text-[11px] text-neutral-400 text-center">Loading skills...</div>
+            ) : installedSkills.length === 0 ? (
+              <div className="p-2.5 rounded-xl border border-dashed border-neutral-200 text-center">
+                <p className="text-[11px] text-neutral-500">No skills equipped yet.</p>
+                <Link
+                  href="/skills"
+                  className="mt-1 text-[11px] font-medium text-neutral-900 hover:underline inline-block"
+                >
+                  + Browse Skill Library
+                </Link>
+              </div>
+            ) : (
+              <div className="space-y-1.5 max-h-40 overflow-y-auto pr-1">
+                {installedSkills.map((sk) => {
+                  const meta = getRoleMeta(sk.targetRole)
+                  return (
+                    <div
+                      key={sk.id}
+                      className="group flex items-center justify-between p-2 rounded-lg border border-neutral-200/70 bg-white hover:border-neutral-300 transition-all text-xs"
+                    >
+                      <div className="min-w-0 pr-2">
+                        <div className="flex items-center gap-1.5">
+                          <span className="font-semibold text-neutral-800 text-[11px] truncate">
+                            {sk.name}
+                          </span>
+                          {sk.isPreset && (
+                            <span className="text-[9px] px-1 py-0.2 rounded bg-amber-50 text-amber-700 border border-amber-200/60 shrink-0">
+                              Preset
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-1 mt-0.5">
+                          <span className={`text-[9px] px-1.5 py-0.2 rounded border ${meta.color}`}>
+                            {meta.label}
+                          </span>
+                          <span className="text-[9px] text-neutral-400">
+                            {sk.files?.length || 0} files
+                          </span>
+                        </div>
+                      </div>
+
+                      <button
+                        onClick={() => handleDetachSkill(sk.id, sk.name)}
+                        className="opacity-0 group-hover:opacity-100 p-1 text-neutral-400 hover:text-red-600 hover:bg-red-50 rounded transition-all"
+                        title={`Detach ${sk.name} from board`}
+                      >
+                        <Trash2 className="w-3 h-3" />
+                      </button>
+                    </div>
+                  )
+                })}
+              </div>
             )}
           </div>
 
