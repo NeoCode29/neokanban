@@ -6,6 +6,7 @@ import { usePathname, useRouter } from 'next/navigation'
 import {
   LayoutDashboard,
   CheckSquare,
+  Sparkles,
   KeyRound,
   LogOut,
   PanelLeftClose,
@@ -156,7 +157,22 @@ export default function Sidebar() {
               )}
             </Link>
 
-            {/* 3. AI Tokens & MCP */}
+            {/* 3. Skill Library */}
+            <Link
+              href="/skills"
+              onClick={isMobile ? closeMobile : undefined}
+              className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium transition-colors ${
+                pathname === '/skills' || pathname.startsWith('/skills/')
+                  ? 'bg-neutral-200/70 text-neutral-900 font-semibold'
+                  : 'text-neutral-600 hover:text-neutral-900 hover:bg-neutral-200/40'
+              }`}
+              title="Skill Library"
+            >
+              <Sparkles className="w-4 h-4 shrink-0 text-amber-500" />
+              {!collapsed && <span>Skill Library</span>}
+            </Link>
+
+            {/* 4. AI Tokens & MCP */}
             <Link
               href="/settings"
               onClick={isMobile ? closeMobile : undefined}
