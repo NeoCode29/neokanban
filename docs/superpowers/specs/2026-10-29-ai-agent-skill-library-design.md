@@ -193,3 +193,4 @@ Menambahkan 4 tool MCP baru (meningkatkan total dari 18 menjadi 22 tools AI):
 4. **UI & Responsivitas**:
    - Verifikasi tampilan navigasi sidebar, katalog grid `/skills`, modal upload, dan modal detail berkas.
    - Zero TypeScript compile error (`npx tsc --noEmit`).
+

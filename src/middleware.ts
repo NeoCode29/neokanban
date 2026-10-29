@@ -15,7 +15,8 @@ export async function middleware(request: NextRequest) {
     path === '/' ||
     path.startsWith('/boards') ||
     path.startsWith('/settings') ||
-    path.startsWith('/reviews')
+    path.startsWith('/reviews') ||
+    path.startsWith('/skills')
 
   let isAuthenticated = false
   if (token) {
