@@ -58,6 +58,9 @@ export async function GET(
       contextDocuments: {
         orderBy: { order: 'asc' },
       },
+      installedSkills: {
+        include: { skill: true },
+      },
     },
   })
 
