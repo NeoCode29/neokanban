@@ -1,5 +1,6 @@
 import { PrismaClient, Priority } from '@prisma/client'
 import bcrypt from 'bcryptjs'
+import { seedPresetSkills } from './seed-skills'
 
 const prisma = new PrismaClient()
 
@@ -168,6 +169,9 @@ async function main() {
       },
     })
   }
+
+  // 3. Seed preset skills
+  await seedPresetSkills(prisma)
 
   console.log('Seeding completed successfully!')
 }

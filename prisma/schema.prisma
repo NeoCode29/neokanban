@@ -27,6 +27,7 @@ model User {
   assignedCards CardAssignee[]
   tokens       PersonalAccessToken[]
   comments     Comment[]
+  createdSkills Skill[]              @relation("CreatedSkills")
 }
 
 model PersonalAccessToken {
@@ -51,6 +52,7 @@ model Board {
   columns          Column[]
   projectContext   ProjectContext?
   contextDocuments ContextDocument[]
+  installedSkills  BoardSkill[]
   createdAt        DateTime          @default(now())
   updatedAt        DateTime          @updatedAt
 }
@@ -157,3 +159,49 @@ model Comment {
   content       String
   createdAt     DateTime @default(now())
 }
+
+model Skill {
+  id          String       @id @default(cuid())
+  slug        String       @unique
+  name        String
+  description String       @default("")
+  category    String       @default("General") // e.g. "Testing", "Frontend", "Backend", "Security", "DevOps"
+  targetRole  String       @default("FULLSTACK") // matches User specialization roles
+  isPreset    Boolean      @default(false)
+  authorId    String?
+  author      User?        @relation("CreatedSkills", fields: [authorId], references: [id], onDelete: SetNull)
+  files       SkillFile[]
+  boardSkills BoardSkill[]
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  @@index([category])
+  @@index([targetRole])
+}
+
+model SkillFile {
+  id        String   @id @default(cuid())
+  skillId   String
+  skill     Skill    @relation(fields: [skillId], references: [id], onDelete: Cascade)
+  filePath  String   // e.g. "SKILL.md", "examples/sample.ts", "scripts/verify.sh"
+  content   String   @default("")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([skillId, filePath])
+  @@index([skillId])
+}
+
+model BoardSkill {
+  id          String   @id @default(cuid())
+  boardId     String
+  board       Board    @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  skillId     String
+  skill       Skill    @relation(fields: [skillId], references: [id], onDelete: Cascade)
+  installedAt DateTime @default(now())
+
+  @@unique([boardId, skillId])
+  @@index([boardId])
+  @@index([skillId])
+}
+
