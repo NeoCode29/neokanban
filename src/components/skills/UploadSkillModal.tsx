@@ -5,12 +5,12 @@ import {
   X,
   Upload,
   FileArchive,
-  FileCode,
-  Plus,
-  Trash2,
+  FileText,
+  Code2,
   Loader2,
   CheckCircle2,
   FolderTree,
+  AlertCircle,
 } from 'lucide-react'
 import JSZip from 'jszip'
 import { SPECIALIZATION_ROLES } from '@/lib/member-roles'
@@ -21,7 +21,7 @@ interface UploadSkillModalProps {
   onSuccess: () => void
 }
 
-interface SkillFileInput {
+interface ExtractedFile {
   filePath: string
   content: string
 }
@@ -31,22 +31,14 @@ export default function UploadSkillModal({
   onClose,
   onSuccess,
 }: UploadSkillModalProps) {
-  const [activeTab, setActiveTab] = useState<'zip' | 'manual'>('zip')
   const [name, setName] = useState('')
   const [slug, setSlug] = useState('')
   const [description, setDescription] = useState('')
   const [category, setCategory] = useState('General')
   const [targetRole, setTargetRole] = useState('FULLSTACK')
 
-  // Files state
-  const [files, setFiles] = useState<SkillFileInput[]>([
-    {
-      filePath: 'SKILL.md',
-      content: `---\nname: my-custom-skill\ndescription: Custom skill description\n---\n\n# My Custom Skill\n\n## Instructions\nAdd instructions for AI Agents here.`,
-    },
-  ])
-
-  // Upload/Processing state
+  // In-memory extracted files (not rendered in heavy textareas)
+  const [files, setFiles] = useState<ExtractedFile[]>([])
   const [zipFileName, setZipFileName] = useState<string | null>(null)
   const [isProcessingZip, setIsProcessingZip] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -54,7 +46,6 @@ export default function UploadSkillModal({
 
   if (!isOpen) return null
 
-  // Reset form
   const handleReset = () => {
     setName('')
     setSlug('')
@@ -62,16 +53,16 @@ export default function UploadSkillModal({
     setCategory('General')
     setTargetRole('FULLSTACK')
     setZipFileName(null)
-    setFiles([
-      {
-        filePath: 'SKILL.md',
-        content: `---\nname: my-custom-skill\ndescription: Custom skill description\n---\n\n# My Custom Skill\n\n## Instructions\nAdd instructions for AI Agents here.`,
-      },
-    ])
+    setFiles([])
     setError(null)
   }
 
-  // Handle ZIP file drop or selection
+  const handleClose = () => {
+    handleReset()
+    onClose()
+  }
+
+  // Handle ZIP file selection or drop
   const handleZipFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
@@ -82,47 +73,45 @@ export default function UploadSkillModal({
 
     try {
       const zip = await JSZip.loadAsync(file)
-      const extractedFiles: SkillFileInput[] = []
+      const extracted: ExtractedFile[] = []
 
-      // Iterate through files in zip
       const entries = Object.keys(zip.files)
       for (const relativePath of entries) {
-        const zipEntry = zip.files[relativePath]
-        // Skip directory entries and macOS metadata
-        if (zipEntry.dir || relativePath.startsWith('__MACOSX') || relativePath.includes('/.')) {
+        const entry = zip.files[relativePath]
+        // Skip directory nodes and hidden/macOS meta files
+        if (entry.dir || relativePath.startsWith('__MACOSX') || relativePath.includes('/.')) {
           continue
         }
 
-        const content = await zipEntry.async('string')
-        extractedFiles.push({
+        const content = await entry.async('string')
+        extracted.push({
           filePath: relativePath.replace(/^[/\\]+/, ''),
           content,
         })
       }
 
-      if (extractedFiles.length === 0) {
-        throw new Error('ZIP archive is empty or contains no valid text files.')
+      if (extracted.length === 0) {
+        throw new Error('File ZIP kosong atau tidak berisi file teks yang valid.')
       }
 
-      setFiles(extractedFiles)
+      setFiles(extracted)
 
-      // Try to parse SKILL.md for defaults
-      const skillMd = extractedFiles.find(
+      // Try to parse SKILL.md frontmatter for auto-population
+      const skillMd = extracted.find(
         (f) => f.filePath.toLowerCase() === 'skill.md' || f.filePath.toLowerCase().endsWith('/skill.md')
       )
 
       if (skillMd) {
         const text = skillMd.content
-        // Simple frontmatter parsing
         const nameMatch = text.match(/name:\s*([^\n\r]+)/i)
         const descMatch = text.match(/description:\s*([^\n\r]+)/i)
         const catMatch = text.match(/category:\s*([^\n\r]+)/i)
         const roleMatch = text.match(/role:\s*([^\n\r]+)/i)
 
         if (nameMatch?.[1]) {
-          const rawName = nameMatch[1].trim().replace(/^['"]|['"]$/g, '')
-          setName(rawName)
-          setSlug(rawName.toLowerCase().replace(/[^a-z0-9_-]/g, '-'))
+          const raw = nameMatch[1].trim().replace(/^['"]|['"]$/g, '')
+          setName(raw)
+          setSlug(raw.toLowerCase().replace(/[^a-z0-9_-]/g, '-'))
         } else {
           const fallback = file.name.replace(/\.zip$/i, '')
           setName(fallback)
@@ -136,9 +125,9 @@ export default function UploadSkillModal({
           setCategory(catMatch[1].trim().replace(/^['"]|['"]$/g, ''))
         }
         if (roleMatch?.[1]) {
-          const matchedRole = roleMatch[1].trim().toUpperCase()
-          if (SPECIALIZATION_ROLES.some((r) => r.id === matchedRole)) {
-            setTargetRole(matchedRole)
+          const matched = roleMatch[1].trim().toUpperCase()
+          if (SPECIALIZATION_ROLES.some((r) => r.id === matched)) {
+            setTargetRole(matched)
           }
         }
       } else {
@@ -147,40 +136,22 @@ export default function UploadSkillModal({
         setSlug(fallback.toLowerCase().replace(/[^a-z0-9_-]/g, '-'))
       }
     } catch (err: any) {
-      setError(`Failed to read ZIP: ${err.message}`)
+      setError(`Gagal membaca ZIP: ${err.message}`)
+      setFiles([])
     } finally {
       setIsProcessingZip(false)
     }
   }
 
-  // Handle manual file addition
-  const handleAddFile = () => {
-    setFiles([...files, { filePath: `examples/file-${files.length}.ts`, content: '' }])
-  }
-
-  const handleRemoveFile = (index: number) => {
-    if (files.length <= 1) {
-      setError('A skill must have at least one file.')
-      return
-    }
-    setFiles(files.filter((_, i) => i !== index))
-  }
-
-  const handleUpdateFile = (index: number, key: 'filePath' | 'content', value: string) => {
-    const updated = [...files]
-    updated[index][key] = value
-    setFiles(updated)
-  }
-
-  // Submit to POST /api/skills
+  // Handle Form Submission
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!name.trim()) {
-      setError('Skill name is required.')
+    if (files.length === 0) {
+      setError('Silakan pilih file archive .zip yang valid terlebih dahulu.')
       return
     }
-    if (files.length === 0) {
-      setError('At least one file is required.')
+    if (!name.trim()) {
+      setError('Nama skill wajib diisi.')
       return
     }
 
@@ -203,7 +174,7 @@ export default function UploadSkillModal({
 
       const data = await res.json()
       if (!res.ok) {
-        throw new Error(data.error || 'Failed to upload skill.')
+        throw new Error(data.error || 'Gagal menyimpan skill.')
       }
 
       handleReset()
@@ -217,137 +188,138 @@ export default function UploadSkillModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-4">
-      <div className="relative flex flex-col w-full max-w-2xl max-h-[90vh] bg-white rounded-2xl shadow-2xl border border-neutral-200/80 overflow-hidden">
+      <div className="relative flex flex-col w-full max-w-xl max-h-[85vh] bg-white rounded-2xl shadow-2xl border border-neutral-200/80 overflow-hidden">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-neutral-100 bg-neutral-50/50">
-          <div>
-            <h2 className="text-base font-semibold text-neutral-900">Upload Skill to Library</h2>
-            <p className="text-xs text-neutral-500 mt-0.5">
-              Publish a custom AI Agent skill bundle (ZIP archive or multi-file editor)
-            </p>
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-lg bg-neutral-900 text-white flex items-center justify-center">
+              <FileArchive className="w-4 h-4" />
+            </div>
+            <div>
+              <h2 className="text-sm font-semibold text-neutral-900">Upload Skill Archive (.zip)</h2>
+              <p className="text-[11px] text-neutral-500">
+                Unggah paket skill ZIP yang berisi SKILL.md dan file pendukung
+              </p>
+            </div>
           </div>
           <button
-            onClick={onClose}
+            onClick={handleClose}
             className="p-1.5 text-neutral-400 hover:text-neutral-700 hover:bg-neutral-100 rounded-lg transition-colors"
           >
-            <X className="w-5 h-5" />
-          </button>
-        </div>
-
-        {/* Tab Switcher */}
-        <div className="flex border-b border-neutral-100 px-6 pt-3 bg-neutral-50/20">
-          <button
-            type="button"
-            onClick={() => setActiveTab('zip')}
-            className={`flex items-center gap-2 pb-3 px-3 text-xs font-medium border-b-2 transition-colors ${
-              activeTab === 'zip'
-                ? 'border-neutral-900 text-neutral-900 font-semibold'
-                : 'border-transparent text-neutral-500 hover:text-neutral-900'
-            }`}
-          >
-            <FileArchive className="w-4 h-4" />
-            Upload ZIP Archive
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveTab('manual')}
-            className={`flex items-center gap-2 pb-3 px-3 text-xs font-medium border-b-2 transition-colors ${
-              activeTab === 'manual'
-                ? 'border-neutral-900 text-neutral-900 font-semibold'
-                : 'border-transparent text-neutral-500 hover:text-neutral-900'
-            }`}
-          >
-            <FileCode className="w-4 h-4" />
-            Multi-File Editor
+            <X className="w-4 h-4" />
           </button>
         </div>
 
         {/* Form Body */}
         <form onSubmit={handleSubmit} className="flex-1 flex flex-col min-h-0 overflow-y-auto p-6 space-y-4">
           {error && (
-            <div className="p-3 text-xs text-red-600 bg-red-50 border border-red-200/80 rounded-xl">
-              {error}
+            <div className="p-3 text-xs text-red-600 bg-red-50 border border-red-200/80 rounded-xl flex items-center gap-2">
+              <AlertCircle className="w-4 h-4 text-red-500 shrink-0" />
+              <span>{error}</span>
             </div>
           )}
 
-          {activeTab === 'zip' && (
-            <div className="space-y-4">
-              {/* Dropzone */}
-              <div className="relative border-2 border-dashed border-neutral-200 hover:border-neutral-400 rounded-2xl p-6 text-center transition-all bg-neutral-50/50">
-                <input
-                  type="file"
-                  accept=".zip"
-                  onChange={handleZipFileChange}
-                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                />
-                <div className="flex flex-col items-center justify-center">
-                  <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center mb-2">
-                    <Upload className="w-5 h-5" />
-                  </div>
-                  <span className="text-xs font-semibold text-neutral-800">
-                    {zipFileName ? zipFileName : 'Click or drop .zip skill bundle here'}
-                  </span>
-                  <span className="text-[11px] text-neutral-400 mt-1">
-                    ZIP should contain SKILL.md, examples/, scripts/, or docs
-                  </span>
-                </div>
+          {/* Simple Clean ZIP Dropzone */}
+          <div className="relative border-2 border-dashed border-neutral-200 hover:border-neutral-400 rounded-2xl p-6 text-center transition-all bg-neutral-50/60 hover:bg-neutral-50 cursor-pointer">
+            <input
+              type="file"
+              accept=".zip"
+              onChange={handleZipFileChange}
+              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+            />
+            <div className="flex flex-col items-center justify-center">
+              <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center mb-2">
+                <Upload className="w-5 h-5" />
+              </div>
+              <span className="text-xs font-semibold text-neutral-800">
+                {zipFileName ? zipFileName : 'Pilih atau seret file .zip skill Anda ke sini'}
+              </span>
+              <span className="text-[11px] text-neutral-400 mt-0.5">
+                Mendukung bundle SKILL.md, examples/, scripts/, dll.
+              </span>
+            </div>
+          </div>
+
+          {isProcessingZip && (
+            <div className="flex items-center justify-center py-2 text-xs text-neutral-500 gap-2">
+              <Loader2 className="w-4 h-4 animate-spin text-neutral-600" />
+              Mengekstrak berkas ZIP...
+            </div>
+          )}
+
+          {/* Extracted Files Summary (Lightweight Pills, No Textareas!) */}
+          {files.length > 0 && !isProcessingZip && (
+            <div className="p-3.5 bg-neutral-50 rounded-xl border border-neutral-200/80 space-y-2">
+              <div className="flex items-center justify-between text-xs">
+                <span className="font-semibold text-neutral-800 flex items-center gap-1.5">
+                  <FolderTree className="w-3.5 h-3.5 text-neutral-500" />
+                  Berkas Terdeteksi ({files.length})
+                </span>
+                <span className="text-[11px] text-emerald-700 font-medium flex items-center gap-1">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                  Siap diunggah
+                </span>
               </div>
 
-              {isProcessingZip && (
-                <div className="flex items-center justify-center py-2 text-xs text-neutral-500 gap-2">
-                  <Loader2 className="w-4 h-4 animate-spin text-neutral-600" />
-                  Extracting skill files...
-                </div>
-              )}
-
-              {zipFileName && !isProcessingZip && (
-                <div className="flex items-center gap-2 p-3 bg-emerald-50 border border-emerald-200/80 rounded-xl text-xs text-emerald-800">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-                  <span>
-                    Extracted <strong>{files.length}</strong> {files.length === 1 ? 'file' : 'files'} from archive.
-                  </span>
-                </div>
-              )}
+              {/* Fast Compact Path Badges */}
+              <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto pr-1">
+                {files.map((f, i) => {
+                  const isMd = f.filePath.toLowerCase().endsWith('.md')
+                  return (
+                    <span
+                      key={i}
+                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-white border border-neutral-200 text-[11px] font-mono text-neutral-700 shadow-2xs"
+                    >
+                      {isMd ? (
+                        <FileText className="w-3 h-3 text-amber-500 shrink-0" />
+                      ) : (
+                        <Code2 className="w-3 h-3 text-blue-500 shrink-0" />
+                      )}
+                      <span className="truncate max-w-[200px]">{f.filePath}</span>
+                    </span>
+                  )
+                })}
+              </div>
             </div>
           )}
 
-          {/* Common Metadata Fields */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Metadata Form Fields */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 pt-1">
             <div>
-              <label className="block text-xs font-semibold text-neutral-700 mb-1">
-                Skill Name *
+              <label className="block text-[11px] font-semibold text-neutral-700 mb-1">
+                Nama Skill *
               </label>
               <input
                 type="text"
-                placeholder="e.g. Next.js Best Practices"
+                placeholder="Contoh: Next.js Best Practices"
                 value={name}
                 onChange={(e) => {
                   setName(e.target.value)
                   if (!slug) setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9_-]/g, '-'))
                 }}
-                className="w-full px-3 py-2 text-xs bg-neutral-50 rounded-xl border border-neutral-200 focus:bg-white focus:outline-none focus:ring-2 focus:ring-neutral-900/10"
+                className="w-full px-3 py-2 text-xs bg-neutral-50 rounded-xl border border-neutral-200 focus:bg-white focus:outline-none focus:ring-1 focus:ring-neutral-900"
                 required
               />
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-neutral-700 mb-1">
-                Skill Slug
+              <label className="block text-[11px] font-semibold text-neutral-700 mb-1">
+                Slug
               </label>
               <input
                 type="text"
-                placeholder="e.g. nextjs-best-practices"
+                placeholder="contoh: nextjs-best-practices"
                 value={slug}
                 onChange={(e) => setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9_-]/g, '-'))}
-                className="w-full px-3 py-2 text-xs bg-neutral-50 font-mono rounded-xl border border-neutral-200 focus:bg-white focus:outline-none focus:ring-2 focus:ring-neutral-900/10"
+                className="w-full px-3 py-2 text-xs bg-neutral-50 font-mono rounded-xl border border-neutral-200 focus:bg-white focus:outline-none focus:ring-1 focus:ring-neutral-900"
               />
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
             <div>
-              <label className="block text-xs font-semibold text-neutral-700 mb-1">
-                Category
+              <label className="block text-[11px] font-semibold text-neutral-700 mb-1">
+                Kategori
               </label>
               <select
                 value={category}
@@ -363,8 +335,8 @@ export default function UploadSkillModal({
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-neutral-700 mb-1">
-                Target Specialization Role
+              <label className="block text-[11px] font-semibold text-neutral-700 mb-1">
+                Role Spesialisasi Target
               </label>
               <select
                 value={targetRole}
@@ -381,91 +353,39 @@ export default function UploadSkillModal({
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-neutral-700 mb-1">
-              Description
+            <label className="block text-[11px] font-semibold text-neutral-700 mb-1">
+              Deskripsi
             </label>
             <textarea
               rows={2}
-              placeholder="Brief summary of what this skill enables or checks..."
+              placeholder="Deskripsi singkat fungsi dan tujuan skill ini..."
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               className="w-full px-3 py-2 text-xs bg-neutral-50 rounded-xl border border-neutral-200 focus:bg-white focus:outline-none"
             />
           </div>
 
-          {/* Files Editor Section */}
-          <div className="pt-2 border-t border-neutral-100">
-            <div className="flex items-center justify-between mb-3">
-              <span className="text-xs font-semibold text-neutral-700 flex items-center gap-1.5">
-                <FolderTree className="w-4 h-4 text-neutral-400" />
-                Skill Files ({files.length})
-              </span>
-              <button
-                type="button"
-                onClick={handleAddFile}
-                className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium text-neutral-700 bg-neutral-100 hover:bg-neutral-200 rounded-lg transition-colors"
-              >
-                <Plus className="w-3.5 h-3.5" />
-                Add File
-              </button>
-            </div>
-
-            <div className="space-y-3 max-h-60 overflow-y-auto pr-1">
-              {files.map((file, idx) => (
-                <div
-                  key={idx}
-                  className="p-3 bg-neutral-50/70 rounded-xl border border-neutral-200 space-y-2"
-                >
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="text"
-                      placeholder="filePath (e.g. SKILL.md, examples/sample.ts)"
-                      value={file.filePath}
-                      onChange={(e) => handleUpdateFile(idx, 'filePath', e.target.value)}
-                      className="flex-1 px-2.5 py-1 text-xs font-mono bg-white rounded-lg border border-neutral-200 focus:outline-none"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => handleRemoveFile(idx)}
-                      className="p-1.5 text-neutral-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                      title="Remove file"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                  <textarea
-                    rows={activeTab === 'zip' ? 2 : 4}
-                    placeholder="File content..."
-                    value={file.content}
-                    onChange={(e) => handleUpdateFile(idx, 'content', e.target.value)}
-                    className="w-full p-2 text-xs font-mono bg-white rounded-lg border border-neutral-200 focus:outline-none leading-relaxed"
-                  />
-                </div>
-              ))}
-            </div>
-          </div>
-
           {/* Footer Submit */}
-          <div className="pt-4 border-t border-neutral-100 flex items-center justify-end gap-2">
+          <div className="pt-3 border-t border-neutral-100 flex items-center justify-end gap-2">
             <button
               type="button"
-              onClick={onClose}
+              onClick={handleClose}
               className="px-4 py-2 text-xs font-medium text-neutral-600 hover:text-neutral-900 hover:bg-neutral-100 rounded-xl transition-colors"
             >
-              Cancel
+              Batal
             </button>
             <button
               type="submit"
-              disabled={isSubmitting || isProcessingZip}
+              disabled={isSubmitting || isProcessingZip || files.length === 0}
               className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-white bg-neutral-900 hover:bg-neutral-800 disabled:opacity-50 rounded-xl transition-colors shadow-xs"
             >
               {isSubmitting ? (
                 <>
                   <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                  Publishing...
+                  Mengunggah...
                 </>
               ) : (
-                'Publish Skill'
+                'Upload Skill'
               )}
             </button>
           </div>
