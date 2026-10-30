@@ -404,6 +404,12 @@ export default function PreviewCanvas({
             onMouseDown={handleMouseDown}
             onMouseMove={handleMouseMove}
             onMouseUp={handleMouseUp}
+            onClick={(e) => {
+              // Jika user mengklik area kanvas kosong, unfocus / deselect anotasi
+              if (!(e.target as HTMLElement).closest('.annotation-marker') && !(e.target as HTMLElement).closest('.annotation-popover')) {
+                onSelectAnnotation?.(null)
+              }
+            }}
             className={`relative flex-1 w-full h-full overflow-hidden ${
               mode === 'review' ? 'cursor-crosshair' : 'cursor-default'
             }`}
@@ -482,7 +488,7 @@ export default function PreviewCanvas({
                           {isResolved && <Check className="w-2.5 h-2.5" />}
                         </div>
 
-                        {/* Tooltip on Hover */}
+                        {/* Tooltip on Hover / Selected */}
                         {(isHovered || isSelected) && (
                           <div
                             className={`absolute left-0 top-full mt-1.5 z-40 bg-neutral-900 text-white text-xs p-2.5 rounded-xl shadow-2xl border border-neutral-700 min-w-[200px] max-w-xs pointer-events-auto`}
@@ -492,15 +498,29 @@ export default function PreviewCanvas({
                               <span className="font-semibold text-[11px] text-neutral-300">
                                 #{number} • Bounding Box
                               </span>
-                              <span
-                                className={`text-[10px] px-1.5 py-0.2 rounded font-medium ${
-                                  isResolved
-                                    ? 'bg-emerald-500/30 text-emerald-300'
-                                    : 'bg-rose-500/30 text-rose-300'
-                                }`}
-                              >
-                                {isResolved ? 'Selesai' : 'Open'}
-                              </span>
+                              <div className="flex items-center gap-1">
+                                <span
+                                  className={`text-[10px] px-1.5 py-0.2 rounded font-medium ${
+                                    isResolved
+                                      ? 'bg-emerald-500/30 text-emerald-300'
+                                      : 'bg-rose-500/30 text-rose-300'
+                                  }`}
+                                >
+                                  {isResolved ? 'Selesai' : 'Open'}
+                                </span>
+                                {isSelected && (
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      onSelectAnnotation?.(null)
+                                    }}
+                                    className="p-0.5 text-neutral-400 hover:text-white rounded"
+                                    title="Tutup tooltip (unfocus)"
+                                  >
+                                    <X className="w-3 h-3" />
+                                  </button>
+                                )}
+                              </div>
                             </div>
                             <p className="text-neutral-200 text-xs line-clamp-3 mb-1.5">
                               {item.comment}
@@ -555,7 +575,7 @@ export default function PreviewCanvas({
                         {number}
                       </div>
 
-                      {/* Tooltip on Hover */}
+                      {/* Tooltip on Hover / Selected */}
                       {(isHovered || isSelected) && (
                         <div
                           className={`absolute left-1/2 -translate-x-1/2 top-full mt-1.5 z-40 bg-neutral-900 text-white text-xs p-2.5 rounded-xl shadow-2xl border border-neutral-700 min-w-[200px] max-w-xs pointer-events-auto`}
@@ -565,15 +585,29 @@ export default function PreviewCanvas({
                             <span className="font-semibold text-[11px] text-neutral-300">
                               #{number} • Pin Marker
                             </span>
-                            <span
-                              className={`text-[10px] px-1.5 py-0.2 rounded font-medium ${
-                                isResolved
-                                  ? 'bg-emerald-500/30 text-emerald-300'
-                                  : 'bg-rose-500/30 text-rose-300'
-                              }`}
-                            >
-                              {isResolved ? 'Selesai' : 'Open'}
-                            </span>
+                            <div className="flex items-center gap-1">
+                              <span
+                                className={`text-[10px] px-1.5 py-0.2 rounded font-medium ${
+                                  isResolved
+                                    ? 'bg-emerald-500/30 text-emerald-300'
+                                    : 'bg-rose-500/30 text-rose-300'
+                                }`}
+                              >
+                                {isResolved ? 'Selesai' : 'Open'}
+                              </span>
+                              {isSelected && (
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    onSelectAnnotation?.(null)
+                                  }}
+                                  className="p-0.5 text-neutral-400 hover:text-white rounded"
+                                  title="Tutup tooltip (unfocus)"
+                                >
+                                  <X className="w-3 h-3" />
+                                </button>
+                              )}
+                            </div>
                           </div>
                           <p className="text-neutral-200 text-xs line-clamp-3 mb-1.5">
                             {item.comment}

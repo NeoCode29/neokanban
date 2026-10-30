@@ -658,10 +658,10 @@ export default function UiStudioView({
 
       {/* 2. Main Studio Workspace Container (with Zen Mode support) */}
       <div
-        className={`flex flex-col xl:flex-row bg-white border border-neutral-200/90 rounded-2xl shadow-xs overflow-hidden transition-all duration-300 relative ${
+        className={`flex flex-col xl:flex-row bg-white border border-neutral-200/90 rounded-2xl shadow-xs overflow-hidden transition-all duration-300 ${
           isZenMode
-            ? 'fixed inset-2 z-50 h-[calc(100vh-16px)] min-h-0'
-            : 'h-[calc(100vh-215px)] min-h-[640px]'
+            ? '!fixed !inset-0 !z-9999 !w-screen !h-screen !rounded-none !border-0'
+            : 'relative h-[calc(100vh-215px)] min-h-[640px]'
         }`}
       >
         {/* ======================================================== */}
