@@ -645,31 +645,45 @@ export default function PreviewCanvas({
 
                 {/* 3. Popover Form for Creating New Annotation */}
                 {pendingAnnotation && (
-                  <div
-                    className="annotation-popover absolute z-50 pointer-events-auto"
-                    style={{
-                      // Clamp position so popover doesn't overflow container bounds
-                      left: pendingAnnotation.posX > 65 ? 'auto' : `${pendingAnnotation.posX}%`,
-                      right: pendingAnnotation.posX > 65 ? `${100 - pendingAnnotation.posX}%` : 'auto',
-                      top: pendingAnnotation.posY > 65 ? 'auto' : `${pendingAnnotation.posY}%`,
-                      bottom: pendingAnnotation.posY > 65 ? `${100 - pendingAnnotation.posY}%` : 'auto',
-                    }}
-                  >
-                    {/* Visual marker of the pending point */}
+                  <>
+                    {/* Visual marker of the pending point positioned at the exact coordinates */}
                     {pendingAnnotation.type === 'PIN' ? (
-                      <div className="w-4 h-4 rounded-full bg-rose-600 ring-4 ring-rose-400/50 -translate-x-1/2 -translate-y-1/2 mb-1 animate-bounce" />
+                      <div
+                        className="absolute pointer-events-none z-50 -translate-x-1/2 -translate-y-1/2"
+                        style={{
+                          left: `${pendingAnnotation.posX}%`,
+                          top: `${pendingAnnotation.posY}%`,
+                        }}
+                      >
+                        <span className="absolute -inset-2 rounded-full bg-rose-500 opacity-60 animate-ping" />
+                        <div className="w-5 h-5 rounded-full bg-rose-600 ring-4 ring-rose-400/50 flex items-center justify-center text-white text-[10px] font-bold shadow-lg">
+                          +
+                        </div>
+                      </div>
                     ) : (
                       <div
-                        className="border-2 border-dashed border-rose-500 bg-rose-500/20 rounded mb-1 pointer-events-none"
+                        className="absolute border-2 border-dashed border-rose-500 bg-rose-500/20 rounded pointer-events-none z-50"
                         style={{
+                          left: `${pendingAnnotation.posX}%`,
+                          top: `${pendingAnnotation.posY}%`,
                           width: `${pendingAnnotation.width || 10}%`,
                           height: `${pendingAnnotation.height || 10}%`,
                         }}
                       />
                     )}
 
-                    {/* Popover Card */}
-                    <div className="w-72 sm:w-80 bg-white rounded-xl shadow-2xl border border-neutral-200 p-3.5 animate-in fade-in zoom-in-95 text-neutral-900">
+                    {/* Popover Card Clamped to screen boundary near the point */}
+                    <div
+                      className="annotation-popover absolute z-50 pointer-events-auto"
+                      style={{
+                        left: pendingAnnotation.posX > 65 ? 'auto' : `calc(${pendingAnnotation.posX}% + 12px)`,
+                        right: pendingAnnotation.posX > 65 ? `calc(${100 - pendingAnnotation.posX}% + 12px)` : 'auto',
+                        top: pendingAnnotation.posY > 65 ? 'auto' : `${pendingAnnotation.posY}%`,
+                        bottom: pendingAnnotation.posY > 65 ? `calc(${100 - pendingAnnotation.posY}% + 12px)` : 'auto',
+                      }}
+                    >
+                      {/* Popover Card */}
+                      <div className="w-72 sm:w-80 bg-white rounded-xl shadow-2xl border border-neutral-200 p-3.5 animate-in fade-in zoom-in-95 text-neutral-900">
                       <div className="flex items-center justify-between pb-2 mb-2 border-b border-neutral-100">
                         <div className="flex items-center gap-1.5 text-xs font-semibold text-neutral-800">
                           <MessageSquarePlus className="w-3.5 h-3.5 text-rose-600" />
@@ -740,7 +754,8 @@ export default function PreviewCanvas({
                       </div>
                     </div>
                   </div>
-                )}
+                </>
+              )}
               </div>
             )}
           </div>
