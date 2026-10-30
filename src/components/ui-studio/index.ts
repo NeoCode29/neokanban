@@ -1,3 +1,4 @@
+export { default as UiStudioView } from './UiStudioView'
 export { default as PreviewCanvas } from './PreviewCanvas'
 export { default as AnnotationFeed } from './AnnotationFeed'
 export { default as AddEditPageModal } from './AddEditPageModal'

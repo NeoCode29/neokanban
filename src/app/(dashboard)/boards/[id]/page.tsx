@@ -15,12 +15,14 @@ import {
   X,
   CalendarRange,
   Sparkles,
+  Palette,
 } from 'lucide-react'
 import KanbanBoard from '@/components/kanban/KanbanBoard'
 import CardDetailModal from '@/components/kanban/CardDetailModal'
 import ShareBoardModal from '@/components/kanban/ShareBoardModal'
 import GanttTimelineView from '@/components/kanban/GanttTimelineView'
 import BoardSkillsView from '@/components/skills/BoardSkillsView'
+import UiStudioView from '@/components/ui-studio/UiStudioView'
 import { CardData } from '@/components/kanban/KanbanCard'
 import { ColumnData } from '@/components/kanban/KanbanColumn'
 import ProjectContextView, { ContextDocument } from '@/components/context/ProjectContextView'
@@ -44,7 +46,7 @@ export default function BoardPage({ params }: { params: Promise<{ id: string }> 
 
   const [board, setBoard] = useState<BoardDetail | null>(null)
   const [loading, setLoading] = useState(true)
-  const [activeTab, setActiveTab] = useState<'board' | 'context' | 'timeline' | 'skills'>('board')
+  const [activeTab, setActiveTab] = useState<'board' | 'context' | 'timeline' | 'skills' | 'ui-studio'>('board')
   const [activeFilter, setActiveFilter] = useState<string>('all')
   const [searchQuery, setSearchQuery] = useState<string>('')
   const [showMobileSearch, setShowMobileSearch] = useState(false)
@@ -395,6 +397,18 @@ export default function BoardPage({ params }: { params: Promise<{ id: string }> 
               </span>
             )}
           </button>
+
+          <button
+            onClick={() => setActiveTab('ui-studio')}
+            className={`flex items-center gap-1.5 sm:gap-2 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all shrink-0 ${
+              activeTab === 'ui-studio'
+                ? 'bg-neutral-900 text-white shadow-xs'
+                : 'text-neutral-600 hover:text-neutral-900 hover:bg-neutral-100'
+            }`}
+          >
+            <Palette className="w-3.5 h-3.5 text-rose-500" />
+            <span>UI/UX Studio</span>
+          </button>
         </div>
       </div>
 
@@ -509,10 +523,16 @@ export default function BoardPage({ params }: { params: Promise<{ id: string }> 
             onCardClick={(cardId) => setSelectedCardId(cardId)}
           />
         </div>
-      ) : (
+      ) : activeTab === 'skills' ? (
         <BoardSkillsView
           boardId={board.id}
           boardTitle={board.title}
+        />
+      ) : (
+        <UiStudioView
+          boardId={board.id}
+          boardTitle={board.title}
+          isOwner={board.isOwner}
         />
       )}
 
