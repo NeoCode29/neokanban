@@ -829,9 +829,19 @@ server.tool('install_skill_to_local', 'Download an AI Skill from the NeoKanban S
         throw new Error(`Skill "${skill.name}" (${skill.slug}) has no files to install.`);
     }
     const writtenFiles = [];
+    const resolvedBaseWithSep = resolvedBaseDir.endsWith(path_1.default.sep)
+        ? resolvedBaseDir
+        : resolvedBaseDir + path_1.default.sep;
     for (const file of skill.files) {
         const normalizedRelative = file.filePath.replace(/\\/g, '/').replace(/^\/+/, '');
-        const fullPath = path_1.default.join(resolvedBaseDir, normalizedRelative);
+        // Security check: block path traversal
+        if (normalizedRelative.split('/').includes('..') || normalizedRelative.includes('..')) {
+            throw new Error(`Security Violation: Path traversal sequence '..' detected in file path "${file.filePath}"`);
+        }
+        const fullPath = path_1.default.resolve(resolvedBaseDir, normalizedRelative);
+        if (!fullPath.startsWith(resolvedBaseWithSep) && fullPath !== resolvedBaseDir) {
+            throw new Error(`Security Violation: File path "${file.filePath}" attempts to write outside destination directory: ${resolvedBaseDir}`);
+        }
         await fs_1.default.promises.mkdir(path_1.default.dirname(fullPath), { recursive: true });
         await fs_1.default.promises.writeFile(fullPath, file.content, 'utf8');
         writtenFiles.push(normalizedRelative);

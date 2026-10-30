@@ -91,7 +91,17 @@ export async function POST(req: Request) {
           { status: 400 }
         )
       }
-      const cleanPath = sanitizeUtf8(f.filePath.trim().replace(/^[/\\]+/, ''))
+      const cleanPath = sanitizeUtf8(f.filePath.trim().replace(/\\/g, '/').replace(/^\/+/, ''))
+
+      // Security Check: Block Path Traversal (Zip Slip / Directory Escape)
+      const pathSegments = cleanPath.split('/')
+      if (pathSegments.includes('..') || cleanPath.includes('..') || /^[a-zA-Z]:/.test(cleanPath)) {
+        return NextResponse.json(
+          { error: `Security violation: Path traversal sequence '..' is not allowed in filePath "${f.filePath}"` },
+          { status: 400 }
+        )
+      }
+
       const cleanContent = sanitizeUtf8(f.content || '')
       if (cleanPath) {
         validatedFiles.push({

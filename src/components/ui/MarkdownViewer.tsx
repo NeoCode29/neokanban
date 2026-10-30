@@ -8,6 +8,29 @@ interface MarkdownViewerProps {
   className?: string
 }
 
+function isSafeUrl(url?: string): boolean {
+  if (!url) return false
+  const trimmed = url.trim().toLowerCase()
+  return (
+    trimmed.startsWith('https://') ||
+    trimmed.startsWith('http://') ||
+    trimmed.startsWith('mailto:') ||
+    trimmed.startsWith('/') ||
+    trimmed.startsWith('#')
+  )
+}
+
+function isSafeImageUrl(src?: any): boolean {
+  if (!src || typeof src !== 'string') return false
+  const trimmed = src.trim().toLowerCase()
+  return (
+    trimmed.startsWith('https://') ||
+    trimmed.startsWith('http://') ||
+    trimmed.startsWith('/') ||
+    trimmed.startsWith('blob:')
+  )
+}
+
 export default function MarkdownViewer({ content, className = '' }: MarkdownViewerProps) {
   if (!content || !content.trim()) {
     return <span className="text-xs text-neutral-400 italic">No content provided.</span>
@@ -38,24 +61,33 @@ export default function MarkdownViewer({ content, className = '' }: MarkdownView
               {children}
             </blockquote>
           ),
-          a: ({ href, children }) => (
-            <a
-              href={href}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-neutral-900 font-medium underline underline-offset-2 hover:text-neutral-600 transition-colors"
-            >
-              {children}
-            </a>
-          ),
-          img: ({ src, alt }) => (
-            <img
-              src={src}
-              alt={alt || ''}
-              loading="lazy"
-              className="rounded-xl border border-neutral-200/80 my-2 max-w-full h-auto object-contain shadow-2xs hover:shadow-md transition-shadow cursor-pointer"
-            />
-          ),
+          a: ({ href, children }) => {
+            const safe = isSafeUrl(href)
+            return (
+              <a
+                href={safe ? href : '#'}
+                target={safe ? '_blank' : undefined}
+                rel="noopener noreferrer"
+                onClick={!safe ? (e) => e.preventDefault() : undefined}
+                className="text-neutral-900 font-medium underline underline-offset-2 hover:text-neutral-600 transition-colors"
+              >
+                {children}
+              </a>
+            )
+          },
+          img: ({ src, alt }) => {
+            const srcStr = typeof src === 'string' ? src : ''
+            const safeSrc = isSafeImageUrl(srcStr) ? srcStr : ''
+            if (!safeSrc) return null
+            return (
+              <img
+                src={safeSrc}
+                alt={alt || ''}
+                loading="lazy"
+                className="rounded-xl border border-neutral-200/80 my-2 max-w-full h-auto object-contain shadow-2xs hover:shadow-md transition-shadow cursor-pointer"
+              />
+            )
+          },
           table: ({ children }) => (
             <div className="overflow-x-auto my-3 rounded-xl border border-neutral-200/90 shadow-2xs bg-white">
               <table className="min-w-full divide-y divide-neutral-200 text-xs text-neutral-800 font-sans border-collapse">

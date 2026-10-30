@@ -98,6 +98,17 @@ export async function PUT(
 
     // If files are provided, update them
     if (Array.isArray(files) && files.length > 0) {
+      for (const f of files) {
+        const checkPath = sanitizeUtf8(String(f.filePath || '').trim().replace(/\\/g, '/').replace(/^\/+/, ''))
+        const segments = checkPath.split('/')
+        if (segments.includes('..') || checkPath.includes('..') || /^[a-zA-Z]:/.test(checkPath)) {
+          return NextResponse.json(
+            { error: `Security violation: Path traversal sequence '..' is not allowed in filePath "${f.filePath}"` },
+            { status: 400 }
+          )
+        }
+      }
+
       // Delete old files and re-create in transaction
       await prisma.$transaction([
         prisma.skillFile.deleteMany({ where: { skillId: skill.id } }),
@@ -105,7 +116,7 @@ export async function PUT(
           data: files
             .map((f: any) => ({
               skillId: skill.id,
-              filePath: sanitizeUtf8(String(f.filePath || '').trim().replace(/^[/\\]+/, '')),
+              filePath: sanitizeUtf8(String(f.filePath || '').trim().replace(/\\/g, '/').replace(/^\/+/, '')),
               content: sanitizeUtf8(typeof f.content === 'string' ? f.content : ''),
             }))
             .filter((f: any) => Boolean(f.filePath)),

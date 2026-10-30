@@ -4,6 +4,10 @@ import { SignJWT, jwtVerify } from 'jose'
 import { prisma } from './prisma'
 import crypto from 'crypto'
 
+if (process.env.NODE_ENV === 'production' && !process.env.JWT_SECRET) {
+  throw new Error('SECURITY FATAL: JWT_SECRET environment variable must be set in production mode!')
+}
+
 const JWT_SECRET = new TextEncoder().encode(
   process.env.JWT_SECRET || 'neokanban-super-secret-jwt-key-2026-fallback-secret'
 )
@@ -35,7 +39,7 @@ export async function verifySession(token: string): Promise<{ userId: string } |
 }
 
 export async function getCurrentUser() {
-  if (process.env.TEST_AUTH_USER) {
+  if (process.env.TEST_AUTH_USER && process.env.NODE_ENV !== 'production') {
     try {
       return JSON.parse(process.env.TEST_AUTH_USER)
     } catch {

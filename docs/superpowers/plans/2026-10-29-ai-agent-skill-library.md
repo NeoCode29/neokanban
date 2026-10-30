@@ -224,7 +224,7 @@
 - Consumes: Seluruh komponen yang telah dibangun.
 - Produces: Bukti pengujian end-to-end, pembaruan dokumentasi `.context`, dan laporan verifikasi di kartu board.
 
-- [ ] **Step 1: Buat skrip verifikasi E2E `scripts/test-skills-e2e.ts`**
+- [x] **Step 1: Buat skrip verifikasi E2E `scripts/test-skills-e2e.ts`**
   Menguji seluruh alur:
   1. Membuat/upload skill baru dengan multi-file.
   2. Memasang skill ke board via API.
@@ -232,11 +232,20 @@
   4. Menguji MCP `install_skill_to_local` dan memverifikasi folder fisik tertulis di disk komputer.
   5. Melepas skill dan membersihkan artefak tes.
 
-- [ ] **Step 2: Jalankan skrip E2E dan verifikasi hasil**
+- [x] **Step 2: Jalankan skrip E2E dan verifikasi hasil**
   Pastikan seluruh tes lolos 100%.
 
-- [ ] **Step 3: Perbarui dokumentasi internal `.context/`**
+- [x] **Step 3: Perbarui dokumentasi internal `.context/`**
   Update `mcp-specification.md` (menambahkan dokumentasi 4 tools baru) dan `living-context-hub.md`.
 
-- [ ] **Step 4: Push ke GitHub & Laporkan ke Board**
+- [x] **Step 4: Security Hardening & Penetration Testing Remediation**
+  Audit & Patch OWASP Top 10 vulnerabilities:
+  1. VULN-01 (Path Traversal / Zip Slip Prevention): Block traversal in `/api/skills` and MCP `install_skill_to_local`.
+  2. VULN-02 (Stored XSS & Malicious Extension Prevention): Block SVG uploads and strictly derive extensions from MIME.
+  3. VULN-03 (Production Secret & Test Bypass Guard): Enforce `JWT_SECRET` in production and deactivate test mock auth.
+  4. VULN-04 (Brute-Force Rate Limiting & Constant-Time Login): In-memory IP rate limiter and dummy hash verification.
+  5. VULN-05 (JavaScript URL Protocol Filtering): Safe link & image filtering in MarkdownViewer.
+
+- [x] **Step 5: Push ke GitHub & Laporkan ke Board**
   Push seluruh commit ke `origin/master` dan posting komentar verifikasi ke kartu task di NeoKanban.
+

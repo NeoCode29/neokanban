@@ -405,3 +405,4 @@ export default function BoardSkillsView({ boardId, boardTitle }: BoardSkillsView
     </div>
   )
 }
+

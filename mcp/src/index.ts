@@ -1082,9 +1082,25 @@ server.tool(
     }
 
     const writtenFiles: string[] = []
+    const resolvedBaseWithSep = resolvedBaseDir.endsWith(path.sep)
+      ? resolvedBaseDir
+      : resolvedBaseDir + path.sep
+
     for (const file of skill.files) {
       const normalizedRelative = file.filePath.replace(/\\/g, '/').replace(/^\/+/, '')
-      const fullPath = path.join(resolvedBaseDir, normalizedRelative)
+
+      // Security check: block path traversal
+      if (normalizedRelative.split('/').includes('..') || normalizedRelative.includes('..')) {
+        throw new Error(`Security Violation: Path traversal sequence '..' detected in file path "${file.filePath}"`)
+      }
+
+      const fullPath = path.resolve(resolvedBaseDir, normalizedRelative)
+      if (!fullPath.startsWith(resolvedBaseWithSep) && fullPath !== resolvedBaseDir) {
+        throw new Error(
+          `Security Violation: File path "${file.filePath}" attempts to write outside destination directory: ${resolvedBaseDir}`
+        )
+      }
+
       await fs.promises.mkdir(path.dirname(fullPath), { recursive: true })
       await fs.promises.writeFile(fullPath, file.content, 'utf8')
       writtenFiles.push(normalizedRelative)

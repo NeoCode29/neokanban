@@ -18,11 +18,18 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'No file provided' }, { status: 400 })
     }
 
-    // Allowed image types
-    const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/svg+xml']
-    if (!allowedTypes.includes(file.type)) {
+    // Strict allowed image MIME types (SVG disallowed to prevent Stored XSS)
+    const MIME_TO_EXT: Record<string, string> = {
+      'image/jpeg': '.jpg',
+      'image/png': '.png',
+      'image/webp': '.webp',
+      'image/gif': '.gif',
+    }
+
+    const ext = MIME_TO_EXT[file.type]
+    if (!ext) {
       return NextResponse.json(
-        { error: 'Invalid file type. Only JPEG, PNG, WebP, GIF, and SVG images are allowed.' },
+        { error: 'Invalid file type. Only JPEG, PNG, WebP, and GIF images are allowed. SVG is disallowed for security reasons.' },
         { status: 400 }
       )
     }
@@ -39,19 +46,7 @@ export async function POST(req: Request) {
     const uploadDir = path.join(process.cwd(), 'public', 'uploads')
     await fs.promises.mkdir(uploadDir, { recursive: true })
 
-    const originalExt = path.extname(file.name).toLowerCase()
-    const fallbackExt =
-      file.type === 'image/png'
-        ? '.png'
-        : file.type === 'image/webp'
-        ? '.webp'
-        : file.type === 'image/gif'
-        ? '.gif'
-        : file.type === 'image/svg+xml'
-        ? '.svg'
-        : '.jpg'
-
-    const ext = originalExt || fallbackExt
+    // Strict random file name with validated extension (never trust file.name extension)
     const randomHex = crypto.randomBytes(8).toString('hex')
     const fileName = `${Date.now()}-${randomHex}${ext}`
     const targetPath = path.join(uploadDir, fileName)
@@ -62,7 +57,7 @@ export async function POST(req: Request) {
 
     return NextResponse.json({
       url: `/uploads/${fileName}`,
-      fileName: file.name,
+      fileName: file.name.replace(/[^\w\s.-]/g, ''),
       size: file.size,
     })
   } catch (error: any) {
