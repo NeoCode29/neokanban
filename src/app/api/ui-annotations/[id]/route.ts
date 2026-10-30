@@ -149,9 +149,21 @@ export async function DELETE(
       return NextResponse.json({ error: 'Annotation not found' }, { status: 404 })
     }
 
+    // Jika anotasi ini terhubung dengan tugas di Kanban Board (cardId),
+    // hapus juga kartu tugas tersebut agar board tetap bersih dan sinkron.
+    const cardIdToDelete = annotation.cardId
+
     await prisma.uiAnnotation.delete({
       where: { id },
     })
+
+    if (cardIdToDelete) {
+      await prisma.card.delete({
+        where: { id: cardIdToDelete },
+      }).catch((e) => {
+        console.warn(`Card ${cardIdToDelete} might already be deleted:`, e)
+      })
+    }
 
     return NextResponse.json({ success: true, message: 'Annotation deleted successfully' })
   } catch (error) {
