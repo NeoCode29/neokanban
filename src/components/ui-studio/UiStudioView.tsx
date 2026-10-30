@@ -514,36 +514,38 @@ export default function UiStudioView({
       }
 
       const data = await res.json()
-      const updatedAnnotation = data.annotation
+      const updatedAnnotation = data.annotation || (data.card ? { id: annotationId, cardId: data.card.id } : null)
 
-      if (subTab === 'pages') {
-        setPages((prev) =>
-          prev.map((p) => {
-            if (p.id === activeItem?.id) {
-              return {
-                ...p,
-                annotations: (p.annotations || []).map((a) =>
-                  a.id === updatedAnnotation.id ? updatedAnnotation : a
-                ),
+      if (updatedAnnotation && updatedAnnotation.id) {
+        if (subTab === 'pages') {
+          setPages((prev) =>
+            prev.map((p) => {
+              if (p.id === activeItem?.id) {
+                return {
+                  ...p,
+                  annotations: (p.annotations || []).map((a) =>
+                    a.id === updatedAnnotation.id ? { ...a, ...updatedAnnotation } : a
+                  ),
+                }
               }
-            }
-            return p
-          })
-        )
-      } else {
-        setComponents((prev) =>
-          prev.map((c) => {
-            if (c.id === activeItem?.id) {
-              return {
-                ...c,
-                annotations: (c.annotations || []).map((a) =>
-                  a.id === updatedAnnotation.id ? updatedAnnotation : a
-                ),
+              return p
+            })
+          )
+        } else {
+          setComponents((prev) =>
+            prev.map((c) => {
+              if (c.id === activeItem?.id) {
+                return {
+                  ...c,
+                  annotations: (c.annotations || []).map((a) =>
+                    a.id === updatedAnnotation.id ? { ...a, ...updatedAnnotation } : a
+                  ),
+                }
               }
-            }
-            return c
-          })
-        )
+              return c
+            })
+          )
+        }
       }
     } catch (err: any) {
       alert(err.message || 'Gagal mengonversi catatan ke task Kanban.')

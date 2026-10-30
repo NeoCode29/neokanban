@@ -132,12 +132,16 @@ export async function POST(
       },
     })
 
-    await prisma.uiAnnotation.update({
+    const updatedAnnotation = await prisma.uiAnnotation.update({
       where: { id: annotation.id },
       data: { cardId: card.id },
+      include: {
+        author: { select: { id: true, name: true, email: true, avatarUrl: true } },
+        card: { select: { id: true, title: true, columnId: true } },
+      },
     })
 
-    return NextResponse.json({ success: true, card }, { status: 201 })
+    return NextResponse.json({ success: true, card, annotation: updatedAnnotation }, { status: 201 })
   } catch (error) {
     console.error('Failed to convert annotation to task:', error)
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 })
