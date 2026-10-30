@@ -215,16 +215,17 @@ export default function PreviewCanvas({
     setCommentText('')
   }
 
-  // Device width classes
+  // Device width classes: fixed paper container sizes so percentages always map to the exact paper dimensions!
   const getDeviceContainerClass = () => {
     switch (device) {
       case 'mobile':
-        return 'w-[375px] max-w-full h-[667px] my-auto mx-auto shadow-2xl rounded-2xl border-4 border-neutral-800 bg-white'
+        return 'w-[375px] h-[667px] shrink-0 my-auto shadow-2xl rounded-2xl border-4 border-neutral-800 bg-white'
       case 'tablet':
-        return 'w-[768px] max-w-full h-[95%] my-auto mx-auto shadow-2xl rounded-xl border border-neutral-700 bg-white'
+        return 'w-[768px] h-[95%] shrink-0 my-auto shadow-2xl rounded-xl border border-neutral-700 bg-white'
       case 'desktop':
       default:
-        return 'w-full h-full bg-white'
+        // Fixed standard 1200px viewport or full width max-w-[1280px] to keep 100% stable aspect ratio
+        return 'w-full max-w-[1280px] h-full shadow-xl rounded-xl border border-neutral-800 bg-white'
     }
   }
 

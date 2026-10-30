@@ -21,8 +21,13 @@ import {
   CheckCircle2,
   Clock,
   ChevronRight,
+  ChevronLeft,
+  PanelLeftClose,
+  PanelLeftOpen,
   PanelRightClose,
   PanelRightOpen,
+  Maximize2,
+  Minimize2,
   Filter,
 } from 'lucide-react'
 import {
@@ -103,7 +108,9 @@ export default function UiStudioView({
   const [convertingAnnotationId, setConvertingAnnotationId] = useState<string | null>(null)
 
   // Mobile / layout responsive toggles
-  const [showRightFeed, setShowRightFeed] = useState(true)
+  const [showRightFeed, setShowRightFeed] = useState(false) // Default: closed for roomy preview!
+  const [isLeftCollapsed, setIsLeftCollapsed] = useState(false)
+  const [isZenMode, setIsZenMode] = useState(false)
 
   // Modals state
   const [showPageModal, setShowPageModal] = useState(false)
@@ -649,67 +656,126 @@ export default function UiStudioView({
         </div>
       </div>
 
-      {/* 2. Main 3-Column Workspace Container */}
-      <div className="flex flex-col xl:flex-row bg-white border border-neutral-200/90 rounded-2xl shadow-xs overflow-hidden h-[calc(100vh-215px)] min-h-[640px]">
+      {/* 2. Main Studio Workspace Container (with Zen Mode support) */}
+      <div
+        className={`flex flex-col xl:flex-row bg-white border border-neutral-200/90 rounded-2xl shadow-xs overflow-hidden transition-all duration-300 relative ${
+          isZenMode
+            ? 'fixed inset-2 z-50 h-[calc(100vh-16px)] min-h-0'
+            : 'h-[calc(100vh-215px)] min-h-[640px]'
+        }`}
+      >
         {/* ======================================================== */}
         {/* COLUMN 1: LEFT NAVIGATOR (SITE TREE & COMPONENT CATALOG) */}
         {/* ======================================================== */}
-        <aside className="w-full xl:w-80 bg-[#fafafc] border-b xl:border-b-0 xl:border-r border-neutral-200/80 flex flex-col shrink-0 select-none">
-          {/* Sub-tab Pill Switcher */}
-          <div className="p-3 border-b border-neutral-200/70">
-            <div className="grid grid-cols-2 gap-1 p-1 bg-neutral-200/60 rounded-xl">
+        <aside
+          className={`bg-[#fafafc] border-b xl:border-b-0 xl:border-r border-neutral-200/80 flex flex-col shrink-0 select-none transition-all duration-300 ${
+            isLeftCollapsed ? 'w-full xl:w-16' : 'w-full xl:w-72'
+          }`}
+        >
+          {/* Header & Collapse Toggle */}
+          <div className="p-3 border-b border-neutral-200/70 flex items-center justify-between gap-1">
+            {!isLeftCollapsed && (
+              <div className="flex-1 grid grid-cols-2 gap-1 p-1 bg-neutral-200/60 rounded-xl">
+                <button
+                  onClick={() => {
+                    setSubTab('pages')
+                    setSearchQuery('')
+                  }}
+                  className={`flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                    subTab === 'pages'
+                      ? 'bg-white text-neutral-900 shadow-xs font-semibold'
+                      : 'text-neutral-600 hover:text-neutral-900'
+                  }`}
+                >
+                  <Compass className="w-3.5 h-3.5 text-blue-600" />
+                  <span>Peta</span>
+                  <span
+                    className={`px-1.5 py-0.2 rounded-full text-[10px] font-mono ${
+                      subTab === 'pages'
+                        ? 'bg-neutral-100 text-neutral-700'
+                        : 'bg-neutral-300/60 text-neutral-600'
+                    }`}
+                  >
+                    {pages.length}
+                  </span>
+                </button>
+
+                <button
+                  onClick={() => {
+                    setSubTab('components')
+                    setSearchQuery('')
+                  }}
+                  className={`flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                    subTab === 'components'
+                      ? 'bg-white text-neutral-900 shadow-xs font-semibold'
+                      : 'text-neutral-600 hover:text-neutral-900'
+                  }`}
+                >
+                  <Box className="w-3.5 h-3.5 text-purple-600" />
+                  <span>Komponen</span>
+                  <span
+                    className={`px-1.5 py-0.2 rounded-full text-[10px] font-mono ${
+                      subTab === 'components'
+                        ? 'bg-neutral-100 text-neutral-700'
+                        : 'bg-neutral-300/60 text-neutral-600'
+                    }`}
+                  >
+                    {components.length}
+                  </span>
+                </button>
+              </div>
+            )}
+
+            {/* Left collapse toggle button */}
+            <button
+              onClick={() => setIsLeftCollapsed(!isLeftCollapsed)}
+              className="p-1.5 text-neutral-500 hover:text-neutral-900 hover:bg-neutral-200/60 rounded-lg transition-colors shrink-0"
+              title={isLeftCollapsed ? 'Buka navigator' : 'Ciutkan navigator'}
+            >
+              {isLeftCollapsed ? (
+                <PanelLeftOpen className="w-4 h-4 text-neutral-700" />
+              ) : (
+                <PanelLeftClose className="w-4 h-4 text-neutral-500" />
+              )}
+            </button>
+          </div>
+
+          {/* When collapsed: Icon-only Navigation */}
+          {isLeftCollapsed ? (
+            <div className="p-2 flex flex-col items-center gap-2">
               <button
                 onClick={() => {
                   setSubTab('pages')
-                  setSearchQuery('')
+                  setIsLeftCollapsed(false)
                 }}
-                className={`flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                className={`p-2.5 rounded-xl transition-all ${
                   subTab === 'pages'
-                    ? 'bg-white text-neutral-900 shadow-xs font-semibold'
-                    : 'text-neutral-600 hover:text-neutral-900'
+                    ? 'bg-blue-50 text-blue-600 border border-blue-200'
+                    : 'text-neutral-500 hover:bg-neutral-200/60'
                 }`}
+                title="Peta Halaman"
               >
-                <Compass className="w-3.5 h-3.5 text-blue-600" />
-                <span>Peta Halaman</span>
-                <span
-                  className={`px-1.5 py-0.2 rounded-full text-[10px] font-mono ${
-                    subTab === 'pages'
-                      ? 'bg-neutral-100 text-neutral-700'
-                      : 'bg-neutral-300/60 text-neutral-600'
-                  }`}
-                >
-                  {pages.length}
-                </span>
+                <Compass className="w-4 h-4" />
               </button>
-
               <button
                 onClick={() => {
                   setSubTab('components')
-                  setSearchQuery('')
+                  setIsLeftCollapsed(false)
                 }}
-                className={`flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                className={`p-2.5 rounded-xl transition-all ${
                   subTab === 'components'
-                    ? 'bg-white text-neutral-900 shadow-xs font-semibold'
-                    : 'text-neutral-600 hover:text-neutral-900'
+                    ? 'bg-purple-50 text-purple-600 border border-purple-200'
+                    : 'text-neutral-500 hover:bg-neutral-200/60'
                 }`}
+                title="Katalog Komponen"
               >
-                <Box className="w-3.5 h-3.5 text-purple-600" />
-                <span>Komponen</span>
-                <span
-                  className={`px-1.5 py-0.2 rounded-full text-[10px] font-mono ${
-                    subTab === 'components'
-                      ? 'bg-neutral-100 text-neutral-700'
-                      : 'bg-neutral-300/60 text-neutral-600'
-                  }`}
-                >
-                  {components.length}
-                </span>
+                <Box className="w-4 h-4" />
               </button>
             </div>
-          </div>
-
-          {/* Search bar & Category filter */}
-          <div className="p-3 border-b border-neutral-200/70 space-y-2.5">
+          ) : (
+            <>
+              {/* Search bar & Category filter */}
+              <div className="p-3 border-b border-neutral-200/70 space-y-2.5">
             <div className="relative">
               <Search className="w-3.5 h-3.5 text-neutral-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
               <input
@@ -927,6 +993,8 @@ export default function UiStudioView({
               })
             )}
           </div>
+            </>
+          )}
         </aside>
 
         {/* ======================================================== */}
@@ -992,18 +1060,34 @@ export default function UiStudioView({
                 </button>
               </div>
 
-              {/* Toggle Feedback Panel */}
+              {/* Zen Mode / Fullscreen Toggle */}
+              <button
+                onClick={() => setIsZenMode(!isZenMode)}
+                className={`p-1.5 rounded-xl border text-xs flex items-center transition-colors ${
+                  isZenMode
+                    ? 'bg-neutral-900 text-white border-neutral-900'
+                    : 'bg-white text-neutral-600 border-neutral-200 hover:bg-neutral-50'
+                }`}
+                title={isZenMode ? 'Keluar dari Zen Mode' : 'Zen Focus Mode (Layar Penuh)'}
+              >
+                {isZenMode ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
+              </button>
+
+              {/* Toggle Feedback Flyout Drawer */}
               <button
                 onClick={() => setShowRightFeed(!showRightFeed)}
-                className={`p-1.5 rounded-xl border text-xs flex items-center gap-1 transition-colors ${
+                className={`px-2.5 py-1.5 rounded-xl border text-xs flex items-center gap-1.5 transition-all shadow-2xs font-semibold ${
                   showRightFeed
-                    ? 'bg-neutral-900 text-white border-neutral-900'
-                    : 'bg-white text-neutral-700 border-neutral-200 hover:bg-neutral-50'
+                    ? 'bg-rose-600 text-white border-rose-600 ring-2 ring-rose-200'
+                    : 'bg-white text-neutral-800 border-neutral-200 hover:bg-neutral-50 hover:border-neutral-300'
                 }`}
                 title={showRightFeed ? 'Tutup panel catatan' : 'Buka panel catatan'}
               >
                 <MessageSquare className="w-3.5 h-3.5" />
-                <span className="text-[11px] font-mono px-1 rounded-full bg-rose-500 text-white font-semibold">
+                <span className="hidden sm:inline">Catatan</span>
+                <span className={`text-[10px] font-mono px-1.5 py-0.2 rounded-full font-bold ${
+                  showRightFeed ? 'bg-white text-rose-600' : 'bg-rose-500 text-white'
+                }`}>
                   {currentAnnotations.length}
                 </span>
               </button>
@@ -1058,21 +1142,36 @@ export default function UiStudioView({
         </section>
 
         {/* ======================================================== */}
-        {/* COLUMN 3: RIGHT FEEDBACK & ANNOTATION FEED               */}
+        {/* COLUMN 3: RIGHT FEEDBACK & ANNOTATION FLYOUT DRAWER      */}
         {/* ======================================================== */}
         {showRightFeed && (
-          <aside className="w-full xl:w-88 border-t xl:border-t-0 xl:border-l border-neutral-200/80 flex flex-col shrink-0 overflow-hidden bg-white select-none">
-            <AnnotationFeed
-              annotations={currentAnnotations}
-              selectedAnnotationId={selectedAnnotationId}
-              onSelectAnnotation={setSelectedAnnotationId}
-              onToggleStatus={handleToggleStatus}
-              onConvertToTask={handleConvertToTask}
-              onDeleteAnnotation={handleDeleteAnnotation}
-              isConvertingId={convertingAnnotationId}
-              className="h-full"
-              readOnly={false}
-            />
+          <aside className="absolute right-0 top-0 bottom-0 z-30 w-full sm:w-96 shadow-2xl border-l border-neutral-200/90 flex flex-col shrink-0 overflow-hidden bg-white select-none animate-in slide-in-from-right duration-200">
+            <div className="p-3 bg-neutral-50 border-b border-neutral-200/80 flex items-center justify-between">
+              <span className="text-xs font-bold text-neutral-900 flex items-center gap-1.5">
+                <MessageSquare className="w-3.5 h-3.5 text-rose-600" />
+                Catatan Review UX
+              </span>
+              <button
+                onClick={() => setShowRightFeed(false)}
+                className="p-1 text-neutral-400 hover:text-neutral-700 hover:bg-neutral-200/60 rounded-lg transition-colors"
+                title="Tutup drawer catatan"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="flex-1 overflow-hidden">
+              <AnnotationFeed
+                annotations={currentAnnotations}
+                selectedAnnotationId={selectedAnnotationId}
+                onSelectAnnotation={setSelectedAnnotationId}
+                onToggleStatus={handleToggleStatus}
+                onConvertToTask={handleConvertToTask}
+                onDeleteAnnotation={handleDeleteAnnotation}
+                isConvertingId={convertingAnnotationId}
+                className="h-full"
+                readOnly={false}
+              />
+            </div>
           </aside>
         )}
       </div>
