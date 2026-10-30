@@ -92,6 +92,10 @@ export async function PUT(
       updateData.status = sanitizeUtf8(status.trim())
     }
     if (htmlContent !== undefined && typeof htmlContent === 'string') {
+      // Security Hardening: Batasi ukuran HTML (Max 2MB)
+      if (htmlContent.length > 2 * 1024 * 1024) {
+        return NextResponse.json({ error: 'HTML content exceeds maximum allowed size (2MB)' }, { status: 400 })
+      }
       updateData.htmlContent = sanitizeUtf8(htmlContent)
     }
     if (order !== undefined && typeof order === 'number') {

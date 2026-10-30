@@ -75,6 +75,11 @@ export async function POST(
       return NextResponse.json({ error: 'Title is required' }, { status: 400 })
     }
 
+    // Security Hardening: Batasi ukuran HTML (Max 2MB = ~2,000,000 chars)
+    if (htmlContent && typeof htmlContent === 'string' && htmlContent.length > 2 * 1024 * 1024) {
+      return NextResponse.json({ error: 'HTML content exceeds maximum allowed size (2MB)' }, { status: 400 })
+    }
+
     let pageOrder = typeof order === 'number' ? order : 0
     if (typeof order !== 'number') {
       const maxOrderPage = await prisma.uiPage.findFirst({

@@ -92,6 +92,10 @@ export async function PUT(
       updateData.status = sanitizeUtf8(status.trim())
     }
     if (comment !== undefined && typeof comment === 'string') {
+      // Security Hardening: Batasi panjang komentar anotasi (Max 1,000 karakter)
+      if (comment.trim().length > 1000) {
+        return NextResponse.json({ error: 'Comment exceeds maximum length of 1,000 characters' }, { status: 400 })
+      }
       updateData.comment = sanitizeUtf8(comment.trim())
     }
 

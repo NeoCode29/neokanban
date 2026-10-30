@@ -25,6 +25,11 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Comment is required' }, { status: 400 })
     }
 
+    // Security Hardening: Batasi panjang komentar anotasi (Max 1,000 karakter)
+    if (comment.trim().length > 1000) {
+      return NextResponse.json({ error: 'Comment exceeds maximum length of 1,000 characters' }, { status: 400 })
+    }
+
     if (typeof posX !== 'number' || typeof posY !== 'number') {
       return NextResponse.json({ error: 'posX and posY are required numbers' }, { status: 400 })
     }

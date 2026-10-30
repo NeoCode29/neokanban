@@ -83,6 +83,11 @@ export async function POST(
       return NextResponse.json({ error: 'Name is required' }, { status: 400 })
     }
 
+    // Security Hardening: Batasi ukuran HTML (Max 2MB)
+    if (htmlContent && typeof htmlContent === 'string' && htmlContent.length > 2 * 1024 * 1024) {
+      return NextResponse.json({ error: 'HTML content exceeds maximum allowed size (2MB)' }, { status: 400 })
+    }
+
     let compOrder = typeof order === 'number' ? order : 0
     if (typeof order !== 'number') {
       const maxOrderComp = await prisma.uiComponent.findFirst({
