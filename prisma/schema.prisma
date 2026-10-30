@@ -28,6 +28,7 @@ model User {
   tokens       PersonalAccessToken[]
   comments     Comment[]
   createdSkills Skill[]              @relation("CreatedSkills")
+  uiAnnotations UiAnnotation[]
 }
 
 model PersonalAccessToken {
@@ -53,6 +54,8 @@ model Board {
   projectContext   ProjectContext?
   contextDocuments ContextDocument[]
   installedSkills  BoardSkill[]
+  uiPages          UiPage[]
+  uiComponents     UiComponent[]
   createdAt        DateTime          @default(now())
   updatedAt        DateTime          @updatedAt
 }
@@ -122,6 +125,7 @@ model Card {
   assignees   CardAssignee[]
   checklists  ChecklistItem[]
   comments    Comment[]
+  uiAnnotations UiAnnotation[]
   createdAt   DateTime        @default(now())
   updatedAt   DateTime        @updatedAt
 }
@@ -204,4 +208,64 @@ model BoardSkill {
   @@index([boardId])
   @@index([skillId])
 }
+
+model UiPage {
+  id          String         @id @default(cuid())
+  boardId     String
+  board       Board          @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  title       String
+  path        String
+  description String?        @db.Text
+  status      String         @default("DRAFT")
+  htmlContent String         @db.Text
+  order       Int            @default(0)
+  annotations UiAnnotation[]
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  @@index([boardId])
+}
+
+model UiComponent {
+  id          String         @id @default(cuid())
+  boardId     String
+  board       Board          @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  name        String
+  category    String         @default("General")
+  description String?        @db.Text
+  htmlContent String         @db.Text
+  order       Int            @default(0)
+  annotations UiAnnotation[]
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  @@index([boardId])
+}
+
+model UiAnnotation {
+  id          String       @id @default(cuid())
+  pageId      String?
+  page        UiPage?      @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  componentId String?
+  component   UiComponent? @relation(fields: [componentId], references: [id], onDelete: Cascade)
+  authorId    String
+  author      User         @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  type        String       @default("PIN")
+  posX        Float
+  posY        Float
+  width       Float?
+  height      Float?
+  comment     String       @db.Text
+  status      String       @default("OPEN")
+  cardId      String?
+  card        Card?        @relation(fields: [cardId], references: [id], onDelete: SetNull)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  @@index([pageId])
+  @@index([componentId])
+  @@index([authorId])
+  @@index([cardId])
+}
+
 
