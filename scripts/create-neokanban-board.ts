@@ -51,7 +51,7 @@ async function main() {
   }
 
   // 2. Read and populate all documents from .context/
-  const contextDir = path.resolve(process.cwd(), '.context')
+  const contextDir = path.resolve(__dirname, '../.context')
   const files = [
     {
       fileName: 'overview.md',
@@ -100,6 +100,18 @@ async function main() {
       sourceFile: 'workflow-and-operations.md',
       title: 'Dev Workflow, Docker & Test Scripts',
       order: 7,
+    },
+    {
+      fileName: 'ui-ux-studio.md',
+      sourceFile: 'ui-ux-studio.md',
+      title: 'UI/UX Studio & Interactive Prototype',
+      order: 8,
+    },
+    {
+      fileName: 'skill-library.md',
+      sourceFile: 'skill-library.md',
+      title: 'AI Agent Skill Library & Packaging',
+      order: 9,
     },
   ]
 

@@ -3,6 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.loadHarnessBundle = loadHarnessBundle;
 const mcp_js_1 = require("@modelcontextprotocol/sdk/server/mcp.js");
 const stdio_js_1 = require("@modelcontextprotocol/sdk/server/stdio.js");
 const zod_1 = require("zod");
@@ -851,6 +852,199 @@ server.tool('install_skill_to_local', 'Download an AI Skill from the NeoKanban S
             {
                 type: 'text',
                 text: `Successfully installed skill "${skill.name}" (${skill.slug}) to local disk:\nDirectory: ${resolvedBaseDir}\nFiles written (${writtenFiles.length}):\n${writtenFiles.map((f) => `  - ${f}`).join('\n')}`,
+            },
+        ],
+    };
+});
+function loadHarnessBundle() {
+    const assetPath = path_1.default.resolve(__dirname, '../assets/harness-bundle.json');
+    const fallbackPath = path_1.default.resolve(process.cwd(), 'mcp/assets/harness-bundle.json');
+    const externalFallback = 'C:/Users/kresna/Documents/harnes/harnes-neokanban/dist/harness-bundle.json';
+    let p = assetPath;
+    if (!fs_1.default.existsSync(p)) {
+        p = fallbackPath;
+    }
+    if (!fs_1.default.existsSync(p) && fs_1.default.existsSync(externalFallback)) {
+        p = externalFallback;
+    }
+    if (!fs_1.default.existsSync(p)) {
+        throw new Error(`Harness bundle asset not found at: ${p}. Pastikan berkas mcp/assets/harness-bundle.json tersedia.`);
+    }
+    return JSON.parse(fs_1.default.readFileSync(p, 'utf-8'));
+}
+// ============================================================================
+// Tool: setup_project_harness
+// ============================================================================
+server.tool('setup_project_harness', 'Bootstraps the complete Lean Agentic Harness into the target workspace and synchronizes Living Context to the NeoKanban board.', {
+    boardId: zod_1.z.string().optional().describe('ID board NeoKanban yang sudah ada. Jika kosong, akan otomatis dibuat board baru.'),
+    boardTitle: zod_1.z.string().optional().describe('Nama board baru jika boardId tidak diisi (default: nama folder workspace).'),
+    targetDir: zod_1.z.string().optional().describe('Direktori workspace tujuan (default: process.cwd()).'),
+    stackType: zod_1.z.enum(['monorepo', 'unified', 'backend-only', 'frontend-only']).default('unified').describe('Pilihan arsitektur proyek.'),
+    authorRole: zod_1.z.string().default('all-roles').describe('Role teknis pengguna pada board.'),
+    token: zod_1.z.string().optional().describe('Personal Access Token override jika ada.'),
+}, async ({ boardId, boardTitle, targetDir, stackType, authorRole, token }) => {
+    const cwd = targetDir ? path_1.default.resolve(process.cwd(), targetDir) : process.cwd();
+    const effectiveToken = token || process.env.NEOKANBAN_PAT;
+    const bundle = loadHarnessBundle();
+    // 1. Resolve or Create Board
+    let resolvedBoardId = boardId;
+    let resolvedBoardTitle = boardTitle;
+    if (!resolvedBoardId) {
+        const defaultTitle = boardTitle || path_1.default.basename(cwd) || 'New Project';
+        const createRes = await apiRequest('/api/boards', {
+            method: 'POST',
+            token: effectiveToken,
+            body: {
+                title: defaultTitle,
+                description: `AI-native project workspace generated via setup_project_harness (${stackType})`,
+            },
+        });
+        resolvedBoardId = createRes.board.id;
+        resolvedBoardTitle = createRes.board.title;
+    }
+    else if (!resolvedBoardTitle) {
+        try {
+            const boardRes = await apiRequest(`/api/boards/${resolvedBoardId}`, { token: effectiveToken });
+            if (boardRes?.board?.title) {
+                resolvedBoardTitle = boardRes.board.title;
+            }
+        }
+        catch {
+            resolvedBoardTitle = resolvedBoardTitle || 'Existing Board';
+        }
+    }
+    // 2. Unpack files ke targetDir
+    const installedFiles = [];
+    for (const file of bundle.files) {
+        // Normalisasi path & cegah path traversal
+        const normalized = file.path.replace(/\\/g, '/').replace(/^\/+/, '');
+        if (normalized.includes('..'))
+            continue;
+        const fullPath = path_1.default.resolve(cwd, normalized);
+        const parentDir = path_1.default.dirname(fullPath);
+        if (!fs_1.default.existsSync(parentDir)) {
+            fs_1.default.mkdirSync(parentDir, { recursive: true });
+        }
+        fs_1.default.writeFileSync(fullPath, file.content, 'utf-8');
+        installedFiles.push(normalized);
+    }
+    // 3. Handle Stack Presets (e.g. Monorepo client/ & server/)
+    if (stackType === 'monorepo') {
+        const clientDir = path_1.default.resolve(cwd, 'client');
+        const serverDir = path_1.default.resolve(cwd, 'server');
+        if (!fs_1.default.existsSync(clientDir)) {
+            fs_1.default.mkdirSync(clientDir, { recursive: true });
+            fs_1.default.writeFileSync(path_1.default.join(clientDir, '.gitkeep'), '', 'utf-8');
+        }
+        if (!fs_1.default.existsSync(serverDir)) {
+            fs_1.default.mkdirSync(serverDir, { recursive: true });
+            fs_1.default.writeFileSync(path_1.default.join(serverDir, '.gitkeep'), '', 'utf-8');
+        }
+    }
+    // 4. Buat .neokanban.json lokal & amankan di .gitignore
+    const projectConfig = {
+        apiUrl: API_BASE_URL,
+        boardId: resolvedBoardId,
+        boardTitle: resolvedBoardTitle,
+        stackType,
+        user: {
+            role: authorRole,
+            mentionTag: '@kresna',
+        },
+        patToken: effectiveToken,
+        initializedAt: new Date().toISOString(),
+    };
+    fs_1.default.writeFileSync(path_1.default.resolve(cwd, '.neokanban.json'), JSON.stringify(projectConfig, null, 2), 'utf-8');
+    const gitignorePath = path_1.default.resolve(cwd, '.gitignore');
+    let gitignore = fs_1.default.existsSync(gitignorePath) ? fs_1.default.readFileSync(gitignorePath, 'utf-8') : '';
+    if (!gitignore.includes('.neokanban.json')) {
+        gitignore += '\n.neokanban.json\n.kanban-map.json\n';
+        fs_1.default.writeFileSync(gitignorePath, gitignore, 'utf-8');
+    }
+    // 5. Push Dokumen Living Context Awal ke NeoKanban Board
+    const contextFiles = bundle.files.filter((f) => f.path.startsWith('docs/context/') && f.path.endsWith('.md'));
+    let pushedCount = 0;
+    for (const ctxFile of contextFiles) {
+        const fileName = path_1.default.basename(ctxFile.path);
+        try {
+            await apiRequest(`/api/boards/${resolvedBoardId}/context`, {
+                method: 'POST',
+                token: effectiveToken,
+                body: {
+                    title: fileName.replace(/\.md$/, ''),
+                    fileName,
+                    content: ctxFile.content,
+                },
+            });
+            pushedCount++;
+        }
+        catch { }
+    }
+    return {
+        content: [
+            {
+                type: 'text',
+                text: `🚀 **Harness Setup Completed Successfully!**\n\n` +
+                    `- **Board Name:** "${resolvedBoardTitle}" (ID: \`${resolvedBoardId}\`)\n` +
+                    `- **Architecture Stack:** \`${stackType}\`\n` +
+                    `- **Files Scaffolded:** ${installedFiles.length} files (.agents/, docs/, scripts/kanban.ts, AGENTS.md)\n` +
+                    `- **Board Living Context:** ${pushedCount} context documents synced\n` +
+                    `- **Credentials:** Configured in \`.neokanban.json\` & secured in \`.gitignore\`\n\n` +
+                    `🎯 **Next Action for AI Agent:**\n` +
+                    `Tanyakan kepada pengguna kebutuhan modul fitur pertama menggunakan \`ask_question\` untuk mengisi \`docs/context/FEATURE_[NAMA].md\`.`,
+            },
+        ],
+    };
+});
+// ============================================================================
+// Tool: upgrade_harness
+// ============================================================================
+server.tool('upgrade_harness', 'Safely updates harness engine, rules, and skills in the current workspace without overwriting user business context or code.', {
+    targetDir: zod_1.z.string().optional().describe('Path folder proyek lokal (default: process.cwd()).'),
+}, async ({ targetDir }) => {
+    const cwd = targetDir ? path_1.default.resolve(process.cwd(), targetDir) : process.cwd();
+    const bundle = loadHarnessBundle();
+    // Pola Proteksi: Berkas ini DILARANG DITIMPA
+    const protectedPatterns = [
+        /^docs\/context\//,
+        /^docs\/ui-governance\/token-design\.json/,
+        /^\.neokanban\.json/,
+        /^\.kanban-map\.json/,
+        /^client\//,
+        /^server\//,
+        /^src\//,
+    ];
+    const updated = [];
+    const preserved = [];
+    for (const file of bundle.files) {
+        const normalized = file.path.replace(/\\/g, '/').replace(/^\/+/, '');
+        if (normalized.includes('..'))
+            continue;
+        const isProtected = protectedPatterns.some((pattern) => pattern.test(normalized));
+        const dest = path_1.default.resolve(cwd, normalized);
+        if (isProtected && fs_1.default.existsSync(dest)) {
+            preserved.push(normalized);
+            continue;
+        }
+        const parentDir = path_1.default.dirname(dest);
+        if (!fs_1.default.existsSync(parentDir)) {
+            fs_1.default.mkdirSync(parentDir, { recursive: true });
+        }
+        fs_1.default.writeFileSync(dest, file.content, 'utf-8');
+        updated.push(normalized);
+    }
+    return {
+        content: [
+            {
+                type: 'text',
+                text: `🔄 **Harness Safe Upgrade Completed (v${bundle.version})**\n\n` +
+                    `✅ **Updated Engine & Skills (${updated.length} files):**\n` +
+                    `- \`scripts/kanban.ts\` (CLI Engine)\n` +
+                    `- \`.agents/rules/\` & \`.agents/skills/\` (AI Specialist Prompts & Rules)\n` +
+                    `- \`AGENTS.md\` & \`HARNESS.md\`\n\n` +
+                    `🛡️ **Protected User Context (${preserved.length} files preserved):**\n` +
+                    `- \`docs/context/*\` (Spesifikasi & arsitektur proyek pengguna)\n` +
+                    `- \`token-design.json\` & source code tidak tersentuh.\n`,
             },
         ],
     };

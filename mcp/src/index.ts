@@ -1117,6 +1117,245 @@ server.tool(
   }
 )
 
+// ============================================================================
+// Types & Helper: Harness Bundle Loading
+// ============================================================================
+export interface HarnessBundleFile {
+  path: string
+  content: string
+}
+
+export interface HarnessBundle {
+  name: string
+  version: string
+  generatedAt: string
+  description: string
+  files: HarnessBundleFile[]
+}
+
+export function loadHarnessBundle(): HarnessBundle {
+  const assetPath = path.resolve(__dirname, '../assets/harness-bundle.json')
+  const fallbackPath = path.resolve(process.cwd(), 'mcp/assets/harness-bundle.json')
+  const externalFallback = 'C:/Users/kresna/Documents/harnes/harnes-neokanban/dist/harness-bundle.json'
+
+  let p = assetPath
+  if (!fs.existsSync(p)) {
+    p = fallbackPath
+  }
+  if (!fs.existsSync(p) && fs.existsSync(externalFallback)) {
+    p = externalFallback
+  }
+
+  if (!fs.existsSync(p)) {
+    throw new Error(
+      `Harness bundle asset not found at: ${p}. Pastikan berkas mcp/assets/harness-bundle.json tersedia.`
+    )
+  }
+  return JSON.parse(fs.readFileSync(p, 'utf-8'))
+}
+
+// ============================================================================
+// Tool: setup_project_harness
+// ============================================================================
+server.tool(
+  'setup_project_harness',
+  'Bootstraps the complete Lean Agentic Harness into the target workspace and synchronizes Living Context to the NeoKanban board.',
+  {
+    boardId: z.string().optional().describe('ID board NeoKanban yang sudah ada. Jika kosong, akan otomatis dibuat board baru.'),
+    boardTitle: z.string().optional().describe('Nama board baru jika boardId tidak diisi (default: nama folder workspace).'),
+    targetDir: z.string().optional().describe('Direktori workspace tujuan (default: process.cwd()).'),
+    stackType: z.enum(['monorepo', 'unified', 'backend-only', 'frontend-only']).default('unified').describe('Pilihan arsitektur proyek.'),
+    authorRole: z.string().default('all-roles').describe('Role teknis pengguna pada board.'),
+    token: z.string().optional().describe('Personal Access Token override jika ada.'),
+  },
+  async ({ boardId, boardTitle, targetDir, stackType, authorRole, token }) => {
+    const cwd = targetDir ? path.resolve(process.cwd(), targetDir) : process.cwd()
+    const effectiveToken = token || process.env.NEOKANBAN_PAT
+    const bundle = loadHarnessBundle()
+
+    // 1. Resolve or Create Board
+    let resolvedBoardId = boardId
+    let resolvedBoardTitle = boardTitle
+
+    if (!resolvedBoardId) {
+      const defaultTitle = boardTitle || path.basename(cwd) || 'New Project'
+      const createRes = await apiRequest<{ board: any }>('/api/boards', {
+        method: 'POST',
+        token: effectiveToken,
+        body: {
+          title: defaultTitle,
+          description: `AI-native project workspace generated via setup_project_harness (${stackType})`,
+        },
+      })
+      resolvedBoardId = createRes.board.id
+      resolvedBoardTitle = createRes.board.title
+    } else if (!resolvedBoardTitle) {
+      try {
+        const boardRes = await apiRequest<{ board: any }>(`/api/boards/${resolvedBoardId}`, { token: effectiveToken })
+        if (boardRes?.board?.title) {
+          resolvedBoardTitle = boardRes.board.title
+        }
+      } catch {
+        resolvedBoardTitle = resolvedBoardTitle || 'Existing Board'
+      }
+    }
+
+    // 2. Unpack files ke targetDir
+    const installedFiles: string[] = []
+    for (const file of bundle.files) {
+      // Normalisasi path & cegah path traversal
+      const normalized = file.path.replace(/\\/g, '/').replace(/^\/+/, '')
+      if (normalized.includes('..')) continue
+
+      const fullPath = path.resolve(cwd, normalized)
+      const parentDir = path.dirname(fullPath)
+      if (!fs.existsSync(parentDir)) {
+        fs.mkdirSync(parentDir, { recursive: true })
+      }
+      fs.writeFileSync(fullPath, file.content, 'utf-8')
+      installedFiles.push(normalized)
+    }
+
+    // 3. Handle Stack Presets (e.g. Monorepo client/ & server/)
+    if (stackType === 'monorepo') {
+      const clientDir = path.resolve(cwd, 'client')
+      const serverDir = path.resolve(cwd, 'server')
+      if (!fs.existsSync(clientDir)) {
+        fs.mkdirSync(clientDir, { recursive: true })
+        fs.writeFileSync(path.join(clientDir, '.gitkeep'), '', 'utf-8')
+      }
+      if (!fs.existsSync(serverDir)) {
+        fs.mkdirSync(serverDir, { recursive: true })
+        fs.writeFileSync(path.join(serverDir, '.gitkeep'), '', 'utf-8')
+      }
+    }
+
+    // 4. Buat .neokanban.json lokal & amankan di .gitignore
+    const projectConfig = {
+      apiUrl: API_BASE_URL,
+      boardId: resolvedBoardId,
+      boardTitle: resolvedBoardTitle,
+      stackType,
+      user: {
+        role: authorRole,
+        mentionTag: '@kresna',
+      },
+      patToken: effectiveToken,
+      initializedAt: new Date().toISOString(),
+    }
+    fs.writeFileSync(path.resolve(cwd, '.neokanban.json'), JSON.stringify(projectConfig, null, 2), 'utf-8')
+
+    const gitignorePath = path.resolve(cwd, '.gitignore')
+    let gitignore = fs.existsSync(gitignorePath) ? fs.readFileSync(gitignorePath, 'utf-8') : ''
+    if (!gitignore.includes('.neokanban.json')) {
+      gitignore += '\n.neokanban.json\n.kanban-map.json\n'
+      fs.writeFileSync(gitignorePath, gitignore, 'utf-8')
+    }
+
+    // 5. Push Dokumen Living Context Awal ke NeoKanban Board
+    const contextFiles = bundle.files.filter((f) => f.path.startsWith('docs/context/') && f.path.endsWith('.md'))
+    let pushedCount = 0
+    for (const ctxFile of contextFiles) {
+      const fileName = path.basename(ctxFile.path)
+      try {
+        await apiRequest(`/api/boards/${resolvedBoardId}/context`, {
+          method: 'POST',
+          token: effectiveToken,
+          body: {
+            title: fileName.replace(/\.md$/, ''),
+            fileName,
+            content: ctxFile.content,
+          },
+        })
+        pushedCount++
+      } catch {}
+    }
+
+    return {
+      content: [
+        {
+          type: 'text',
+          text:
+            `🚀 **Harness Setup Completed Successfully!**\n\n` +
+            `- **Board Name:** "${resolvedBoardTitle}" (ID: \`${resolvedBoardId}\`)\n` +
+            `- **Architecture Stack:** \`${stackType}\`\n` +
+            `- **Files Scaffolded:** ${installedFiles.length} files (.agents/, docs/, scripts/kanban.ts, AGENTS.md)\n` +
+            `- **Board Living Context:** ${pushedCount} context documents synced\n` +
+            `- **Credentials:** Configured in \`.neokanban.json\` & secured in \`.gitignore\`\n\n` +
+            `🎯 **Next Action for AI Agent:**\n` +
+            `Tanyakan kepada pengguna kebutuhan modul fitur pertama menggunakan \`ask_question\` untuk mengisi \`docs/context/FEATURE_[NAMA].md\`.`,
+        },
+      ],
+    }
+  }
+)
+
+// ============================================================================
+// Tool: upgrade_harness
+// ============================================================================
+server.tool(
+  'upgrade_harness',
+  'Safely updates harness engine, rules, and skills in the current workspace without overwriting user business context or code.',
+  {
+    targetDir: z.string().optional().describe('Path folder proyek lokal (default: process.cwd()).'),
+  },
+  async ({ targetDir }) => {
+    const cwd = targetDir ? path.resolve(process.cwd(), targetDir) : process.cwd()
+    const bundle = loadHarnessBundle()
+
+    // Pola Proteksi: Berkas ini DILARANG DITIMPA
+    const protectedPatterns = [
+      /^docs\/context\//,
+      /^docs\/ui-governance\/token-design\.json/,
+      /^\.neokanban\.json/,
+      /^\.kanban-map\.json/,
+      /^client\//,
+      /^server\//,
+      /^src\//,
+    ]
+
+    const updated: string[] = []
+    const preserved: string[] = []
+
+    for (const file of bundle.files) {
+      const normalized = file.path.replace(/\\/g, '/').replace(/^\/+/, '')
+      if (normalized.includes('..')) continue
+
+      const isProtected = protectedPatterns.some((pattern) => pattern.test(normalized))
+
+      const dest = path.resolve(cwd, normalized)
+      if (isProtected && fs.existsSync(dest)) {
+        preserved.push(normalized)
+        continue
+      }
+
+      const parentDir = path.dirname(dest)
+      if (!fs.existsSync(parentDir)) {
+        fs.mkdirSync(parentDir, { recursive: true })
+      }
+      fs.writeFileSync(dest, file.content, 'utf-8')
+      updated.push(normalized)
+    }
+
+    return {
+      content: [
+        {
+          type: 'text',
+          text:
+            `🔄 **Harness Safe Upgrade Completed (v${bundle.version})**\n\n` +
+            `✅ **Updated Engine & Skills (${updated.length} files):**\n` +
+            `- \`scripts/kanban.ts\` (CLI Engine)\n` +
+            `- \`.agents/rules/\` & \`.agents/skills/\` (AI Specialist Prompts & Rules)\n` +
+            `- \`AGENTS.md\` & \`HARNESS.md\`\n\n` +
+            `🛡️ **Protected User Context (${preserved.length} files preserved):**\n` +
+            `- \`docs/context/*\` (Spesifikasi & arsitektur proyek pengguna)\n` +
+            `- \`token-design.json\` & source code tidak tersentuh.\n`,
+        },
+      ],
+    }
+  }
+)
+
 async function run() {
   const transport = new StdioServerTransport()
   await server.connect(transport)
