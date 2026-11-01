@@ -112,6 +112,7 @@ export default function PreviewCanvas({
 
   // Canvas drawing & creation states
   const containerRef = useRef<HTMLDivElement>(null)
+  const iframeRef = useRef<HTMLIFrameElement>(null)
   const [isDrawing, setIsDrawing] = useState(false)
   const [draftBox, setDraftBox] = useState<DraftBox | null>(null)
   const [pendingAnnotation, setPendingAnnotation] = useState<PendingAnnotation | null>(null)
@@ -151,11 +152,27 @@ export default function PreviewCanvas({
     const handleMessage = (event: MessageEvent) => {
       if (!event.data || typeof event.data !== 'object') return
 
+      // Strict security guard: only accept messages dispatched by our own preview iframe contentWindow
+      if (!iframeRef.current || event.source !== iframeRef.current.contentWindow) {
+        return
+      }
+
       if (event.data.type === 'UI_STUDIO_NAVIGATE') {
         const { href, label } = event.data
         if (!href) return
 
         const cleanHref = String(href).trim()
+
+        // Disallow dangerous URI schemes (javascript:, data:, vbscript:)
+        const lowerHref = cleanHref.toLowerCase()
+        if (
+          lowerHref.startsWith('javascript:') ||
+          lowerHref.startsWith('data:') ||
+          lowerHref.startsWith('vbscript:')
+        ) {
+          return
+        }
+
         const normalize = (p: string) =>
           p.toLowerCase().replace(/^\/+/, '').replace(/\.html$/, '').replace(/\/$/, '')
         const targetNorm = normalize(cleanHref)
@@ -780,6 +797,7 @@ export default function PreviewCanvas({
           >
             {/* Sandboxed Iframe (Isolation: NO allow-same-origin) */}
             <iframe
+              ref={iframeRef}
               key={iframeKey}
               sandbox="allow-scripts allow-forms"
               srcDoc={
