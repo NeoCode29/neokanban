@@ -22,6 +22,7 @@ interface AddEditPageModalProps {
   onClose: () => void
   boardId: string
   page?: UiPageData | null
+  initialValues?: { path?: string; title?: string } | null
   onSaved: (page: UiPageData) => void
 }
 
@@ -82,6 +83,7 @@ export default function AddEditPageModal({
   onClose,
   boardId,
   page,
+  initialValues,
   onSaved,
 }: AddEditPageModalProps) {
   const isEditing = Boolean(page)
@@ -111,6 +113,12 @@ export default function AddEditPageModal({
       setDescription(page.description || '')
       setStatus(page.status || 'DRAFT')
       setHtmlContent(page.htmlContent || '')
+    } else if (initialValues) {
+      setTitle(initialValues.title || '')
+      setPath(initialValues.path || '/')
+      setDescription('')
+      setStatus('DRAFT')
+      setHtmlContent(SAMPLE_PAGE_HTML)
     } else {
       setTitle('')
       setPath('/')
@@ -121,7 +129,7 @@ export default function AddEditPageModal({
     setUploadedFileName(null)
     setError(null)
     setActiveTab('code')
-  }, [isOpen, page])
+  }, [isOpen, page, initialValues])
 
   if (!isOpen) return null
 

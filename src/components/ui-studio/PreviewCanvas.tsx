@@ -18,6 +18,7 @@ import {
   Loader2,
   Layers,
   HelpCircle,
+  Compass,
 } from 'lucide-react'
 import {
   UiAnnotationData,
@@ -38,6 +39,9 @@ interface PreviewCanvasProps {
   isSubmittingAnnotation?: boolean
   className?: string
   readOnly?: boolean
+  availablePages?: Array<{ id: string; title: string; path: string }>
+  onNavigatePath?: (path: string, label?: string) => void
+  onCreatePageFromRoute?: (path: string, label?: string) => void
 }
 
 interface DraftBox {
@@ -67,6 +71,9 @@ export default function PreviewCanvas({
   isSubmittingAnnotation = false,
   className = '',
   readOnly = false,
+  availablePages = [],
+  onNavigatePath,
+  onCreatePageFromRoute,
 }: PreviewCanvasProps) {
   // Device Viewport state
   const [device, setDevice] = useState<ViewportDevice>('desktop')
@@ -103,7 +110,190 @@ export default function PreviewCanvas({
     setDraftBox(null)
     setIsDrawing(false)
     setCommentText('')
+    // Refresh iframe instance when HTML content changes to ensure fresh sandbox render
+    setIframeKey((k) => k + 1)
   }, [mode, htmlContent])
+
+  // Navigation Toast for link clicks inside prototype
+  const [navToast, setNavToast] = useState<{
+    visible: boolean
+    href: string
+    label?: string
+    matchedTitle?: string
+  } | null>(null)
+
+  // Auto-dismiss navToast after 5 seconds
+  useEffect(() => {
+    if (!navToast?.visible) return
+    const timer = setTimeout(() => {
+      setNavToast(null)
+    }, 5000)
+    return () => clearTimeout(timer)
+  }, [navToast])
+
+  // Listen for navigation & interaction messages from the sandboxed iframe
+  useEffect(() => {
+    const handleMessage = (event: MessageEvent) => {
+      if (!event.data || typeof event.data !== 'object') return
+
+      if (event.data.type === 'UI_STUDIO_NAVIGATE') {
+        const { href, label } = event.data
+        if (!href) return
+
+        const cleanHref = String(href).trim()
+        const normalize = (p: string) =>
+          p.toLowerCase().replace(/^\/+/, '').replace(/\.html$/, '').replace(/\/$/, '')
+        const targetNorm = normalize(cleanHref)
+
+        const matched = availablePages.find((p) => {
+          return normalize(p.path) === targetNorm || normalize(p.title) === targetNorm
+        })
+
+        if (matched) {
+          setNavToast({
+            visible: true,
+            href: cleanHref,
+            label,
+            matchedTitle: matched.title,
+          })
+          onNavigatePath?.(matched.path, label)
+        } else {
+          setNavToast({
+            visible: true,
+            href: cleanHref,
+            label,
+          })
+          onNavigatePath?.(cleanHref, label)
+        }
+      } else if (event.data.type === 'UI_STUDIO_FORM_SUBMIT') {
+        setNavToast({
+          visible: true,
+          href: event.data.action || 'Form Submit',
+          label: 'Formulir Dikirim (Simulasi)',
+        })
+      } else if (event.data.type === 'UI_STUDIO_UNLOAD_ATTEMPT') {
+        setIframeKey((k) => k + 1)
+      }
+    }
+
+    window.addEventListener('message', handleMessage)
+    return () => window.removeEventListener('message', handleMessage)
+  }, [availablePages, onNavigatePath])
+
+  // Injects security and link interception guards into prototype HTML
+  const guardedHtml = useMemo(() => {
+    if (!htmlContent || !htmlContent.trim()) return ''
+
+    const guardScript = `
+<script id="__neokanban_prototype_guard__">
+(function() {
+  // 1. Intercept all link clicks in capture phase to prevent host /login redirection
+  document.addEventListener('click', function(e) {
+    var el = e.target;
+    while (el && el !== document.documentElement && el.tagName !== 'A' && el.tagName !== 'BUTTON') {
+      el = el.parentElement;
+    }
+    if (!el) return;
+
+    if (el.tagName === 'A') {
+      var href = el.getAttribute('href');
+      
+      // Allow pure in-page hash anchors (e.g. #section)
+      if (href && href.startsWith('#')) {
+        if (href.length > 1) {
+          try {
+            var targetEl = document.getElementById(href.slice(1)) || document.querySelector(href);
+            if (targetEl) {
+              e.preventDefault();
+              targetEl.scrollIntoView({ behavior: 'smooth' });
+              return;
+            }
+          } catch(err) {}
+        } else {
+          // Dummy href="#" anchor
+          e.preventDefault();
+          return;
+        }
+      }
+
+      // Intercept and prevent navigation to host routes (which would trigger /login)
+      e.preventDefault();
+      e.stopPropagation();
+
+      if (href && href !== 'javascript:void(0)' && href !== 'javascript:;' && !href.startsWith('javascript:')) {
+        try {
+          window.parent.postMessage({
+            type: 'UI_STUDIO_NAVIGATE',
+            href: href,
+            label: (el.textContent || el.getAttribute('title') || href).trim().substring(0, 50)
+          }, '*');
+        } catch(err) {}
+      }
+    } else if (el.tagName === 'BUTTON') {
+      var onclick = el.getAttribute('onclick') || '';
+      if (onclick && (onclick.indexOf('location') !== -1 || onclick.indexOf('href') !== -1)) {
+        e.preventDefault();
+        e.stopPropagation();
+        var match = onclick.match(/['"](\\/[^'"]*)['"]/);
+        var target = match ? match[1] : '';
+        try {
+          window.parent.postMessage({
+            type: 'UI_STUDIO_NAVIGATE',
+            href: target || '#',
+            label: (el.textContent || 'Button').trim().substring(0, 50)
+          }, '*');
+        } catch(err) {}
+      }
+    }
+  }, true);
+
+  // 2. Prevent form submission from reloading or navigating iframe
+  document.addEventListener('submit', function(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    var action = e.target.getAttribute('action') || '';
+    try {
+      window.parent.postMessage({
+        type: 'UI_STUDIO_FORM_SUBMIT',
+        action: action
+      }, '*');
+    } catch(err) {}
+  }, true);
+
+  // 3. Override window.open
+  try {
+    window.open = function(url) {
+      if (url) {
+        window.parent.postMessage({
+          type: 'UI_STUDIO_NAVIGATE',
+          href: url,
+          label: 'External Link'
+        }, '*');
+      }
+      return null;
+    };
+  } catch(err) {}
+
+  // 4. Trap beforeunload
+  window.addEventListener('beforeunload', function(e) {
+    try {
+      window.parent.postMessage({ type: 'UI_STUDIO_UNLOAD_ATTEMPT' }, '*');
+    } catch(err) {}
+  });
+})();
+</script>
+`
+
+    let content = htmlContent
+    if (/<head[^>]*>/i.test(content)) {
+      content = content.replace(/(<head[^>]*>)/i, '$1<base target="_self">')
+    }
+
+    if (/<\/body>/i.test(content)) {
+      return content.replace(/<\/body>/i, guardScript + '</body>')
+    }
+    return content + guardScript
+  }, [htmlContent])
 
   // Sort annotations chronologically for consistent numbering #1, #2, ...
   const sortedAnnotations = useMemo(() => {
@@ -419,8 +609,8 @@ export default function PreviewCanvas({
               key={iframeKey}
               sandbox="allow-scripts allow-forms"
               srcDoc={
-                htmlContent && htmlContent.trim()
-                  ? htmlContent
+                guardedHtml
+                  ? guardedHtml
                   : `<!DOCTYPE html><html><body style="font-family:sans-serif;display:flex;align-items:center;justify-center;height:100vh;margin:0;background:#fafafa;color:#888;"><div style="text-align:center;padding:40px;"><h3>Konten HTML Belum Tersedia</h3><p>Gunakan tombol Edit atau Upload untuk memasukkan mockup HTML.</p></div></body></html>`
               }
               className={`w-full h-full border-0 bg-white transition-opacity ${
@@ -756,6 +946,60 @@ export default function PreviewCanvas({
                   </div>
                 </>
               )}
+              </div>
+            )}
+
+            {/* Floating Navigation / Route Simulation Toast */}
+            {navToast && navToast.visible && (
+              <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-60 pointer-events-auto animate-in fade-in slide-in-from-bottom-2 duration-200 max-w-[90%] w-max">
+                <div className="bg-neutral-900/95 backdrop-blur-md text-white text-xs px-3.5 py-2.5 rounded-xl shadow-2xl border border-neutral-700/80 flex items-center gap-3">
+                  <div
+                    className={`w-2 h-2 rounded-full shrink-0 ${
+                      navToast.matchedTitle ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'
+                    }`}
+                  />
+                  <div className="flex-1 min-w-0">
+                    {navToast.matchedTitle ? (
+                      <p className="text-neutral-200 text-xs">
+                        <span className="font-semibold text-emerald-400">Navigasi Prototipe:</span>{' '}
+                        Beralih ke <span className="font-semibold text-white">{navToast.matchedTitle}</span>{' '}
+                        <code className="text-[10px] text-neutral-400 bg-neutral-800 px-1 py-0.5 rounded">
+                          {navToast.href}
+                        </code>
+                      </p>
+                    ) : (
+                      <p className="text-neutral-200 text-xs truncate">
+                        <span className="font-semibold text-amber-400">Simulasi Rute:</span>{' '}
+                        <code className="text-[11px] text-white bg-neutral-800 px-1.5 py-0.5 rounded font-mono">
+                          {navToast.href}
+                        </code>{' '}
+                        <span className="text-neutral-400 text-[11px]">
+                          ({navToast.label || 'Link diklik'})
+                        </span>
+                      </p>
+                    )}
+                  </div>
+                  {!navToast.matchedTitle && onCreatePageFromRoute && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onCreatePageFromRoute(navToast.href, navToast.label)
+                        setNavToast(null)
+                      }}
+                      className="shrink-0 px-2.5 py-1 bg-rose-600 hover:bg-rose-500 text-white font-medium text-[11px] rounded-lg transition-colors shadow-xs"
+                    >
+                      + Buat Halaman
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => setNavToast(null)}
+                    className="shrink-0 text-neutral-400 hover:text-white p-0.5 rounded"
+                    title="Tutup notifikasi"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
               </div>
             )}
           </div>

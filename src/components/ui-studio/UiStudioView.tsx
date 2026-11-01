@@ -115,6 +115,7 @@ export default function UiStudioView({
   // Modals state
   const [showPageModal, setShowPageModal] = useState(false)
   const [editingPage, setEditingPage] = useState<UiPageData | null>(null)
+  const [initialPageValues, setInitialPageValues] = useState<{ path?: string; title?: string } | null>(null)
 
   const [showComponentModal, setShowComponentModal] = useState(false)
   const [editingComponent, setEditingComponent] = useState<UiComponentData | null>(null)
@@ -270,8 +271,40 @@ export default function UiStudioView({
   // --- Handlers for Page CRUD ---
   const handleOpenAddPage = () => {
     setEditingPage(null)
+    setInitialPageValues(null)
     setShowPageModal(true)
   }
+
+  const handleNavigatePath = useCallback(
+    (targetPath: string) => {
+      if (!targetPath) return
+
+      const normalize = (p: string) =>
+        p.toLowerCase().replace(/^\/+/, '').replace(/\.html$/, '').replace(/\/$/, '')
+      const targetNorm = normalize(targetPath)
+
+      const matched = pages.find((p) => {
+        return normalize(p.path) === targetNorm || normalize(p.title) === targetNorm
+      })
+
+      if (matched) {
+        setSelectedPageId(matched.id)
+        setSubTab('pages')
+      }
+    },
+    [pages]
+  )
+
+  const handleCreatePageFromRoute = useCallback((routePath: string, label?: string) => {
+    let cleanPath = routePath.trim()
+    if (!cleanPath.startsWith('/')) cleanPath = '/' + cleanPath
+    setEditingPage(null)
+    setInitialPageValues({
+      path: cleanPath,
+      title: label || cleanPath.replace(/^\//, '').replace(/[-_]/g, ' '),
+    })
+    setShowPageModal(true)
+  }, [])
 
   const handleOpenEditPage = (page: UiPageData, e: React.MouseEvent) => {
     e.stopPropagation()
@@ -1107,6 +1140,9 @@ export default function UiStudioView({
                 selectedAnnotationId={selectedAnnotationId}
                 onSelectAnnotation={setSelectedAnnotationId}
                 isSubmittingAnnotation={isSubmittingAnnotation}
+                availablePages={pages.map((p) => ({ id: p.id, title: p.title, path: p.path }))}
+                onNavigatePath={handleNavigatePath}
+                onCreatePageFromRoute={handleCreatePageFromRoute}
                 className="w-full h-full"
               />
             ) : (
@@ -1183,9 +1219,11 @@ export default function UiStudioView({
           onClose={() => {
             setShowPageModal(false)
             setEditingPage(null)
+            setInitialPageValues(null)
           }}
           boardId={boardId}
           page={editingPage}
+          initialValues={initialPageValues}
           onSaved={handlePageSaved}
         />
       )}
