@@ -19,6 +19,9 @@ import {
   Layers,
   HelpCircle,
   Compass,
+  Moon,
+  Sun,
+  Grid,
 } from 'lucide-react'
 import {
   UiAnnotationData,
@@ -39,6 +42,7 @@ interface PreviewCanvasProps {
   isSubmittingAnnotation?: boolean
   className?: string
   readOnly?: boolean
+  isComponent?: boolean
   availablePages?: Array<{ id: string; title: string; path: string }>
   onNavigatePath?: (path: string, label?: string) => void
   onCreatePageFromRoute?: (path: string, label?: string) => void
@@ -74,12 +78,23 @@ export default function PreviewCanvas({
   availablePages = [],
   onNavigatePath,
   onCreatePageFromRoute,
+  isComponent = false,
 }: PreviewCanvasProps) {
   // Device Viewport state
   const [device, setDevice] = useState<ViewportDevice>('desktop')
   // Interaction mode (browse vs review)
   const [uncontrolledMode, setUncontrolledMode] = useState<CanvasInteractionMode>('browse')
   const mode = controlledMode ?? uncontrolledMode
+
+  // Canvas Backdrop Theme (dark / light / checkerboard pattern)
+  const [backdropTheme, setBackdropTheme] = useState<'dark' | 'light' | 'checker'>('dark')
+
+  // Automatically adapt theme when switching between pages and components
+  useEffect(() => {
+    if (isComponent) {
+      setBackdropTheme('dark')
+    }
+  }, [isComponent])
 
   const setMode = useCallback(
     (newMode: CanvasInteractionMode) => {
@@ -284,16 +299,132 @@ export default function PreviewCanvas({
 </script>
 `
 
-    let content = htmlContent
-    if (/<head[^>]*>/i.test(content)) {
-      content = content.replace(/(<head[^>]*>)/i, '$1<base target="_self">')
+  const isFullDoc = /<!DOCTYPE\s+html/i.test(htmlContent) || /<html[\s>]/i.test(htmlContent)
+
+  // Case A: Isolated Component Snippet -> Wrap in full Tailwind + Modern Font Shell
+  if (!isFullDoc || isComponent) {
+    if (isFullDoc) {
+      let content = htmlContent
+      if (!content.includes('tailwindcss')) {
+        const twCdn = `
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+`
+        if (/<head[^>]*>/i.test(content)) {
+          content = content.replace(/(<head[^>]*>)/i, '$1' + twCdn)
+        }
+      }
+      if (/<head[^>]*>/i.test(content)) {
+        content = content.replace(/(<head[^>]*>)/i, '$1<base target="_self">')
+      }
+      if (/<\/body>/i.test(content)) {
+        return content.replace(/<\/body>/i, guardScript + '</body>')
+      }
+      return content + guardScript
     }
 
-    if (/<\/body>/i.test(content)) {
-      return content.replace(/<\/body>/i, guardScript + '</body>')
+    // Wrap component fragment inside production Tailwind CSS canvas shell
+    return `<!DOCTYPE html>
+<html lang="id" class="${backdropTheme === 'light' ? 'light' : 'dark'}">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <base target="_self">
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace'],
+          },
+        },
+      },
     }
-    return content + guardScript
-  }, [htmlContent])
+  </script>
+  <!-- Google Fonts: Inter & JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <!-- FontAwesome Icons for components using <i class="fa ..."> -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <style>
+    *, *::before, *::after {
+      box-sizing: border-box;
+    }
+    html, body {
+      font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      margin: 0;
+      padding: 0;
+      min-height: 100vh;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+    body {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 2.5rem;
+      transition: background-color 0.2s, color 0.2s;
+    }
+    body.theme-dark {
+      background-color: #0b0f17;
+      color: #f0f6fc;
+    }
+    body.theme-light {
+      background-color: #f8fafc;
+      color: #0f172a;
+    }
+    body.theme-checker {
+      background-color: #1a1f2c;
+      background-image: 
+        linear-gradient(45deg, #111520 25%, transparent 25%), 
+        linear-gradient(-45deg, #111520 25%, transparent 25%), 
+        linear-gradient(45deg, transparent 75%, #111520 75%), 
+        linear-gradient(-45deg, transparent 75%, #111520 75%);
+      background-size: 20px 20px;
+      background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
+      color: #f1f5f9;
+    }
+  </style>
+</head>
+<body class="theme-${backdropTheme}">
+  <div class="component-stage w-full flex items-center justify-center">
+    ${htmlContent}
+  </div>
+  ${guardScript}
+</body>
+</html>`
+  }
+
+  // Case B: Full HTML Document -> Ensure Tailwind CDN & Base Target are present
+  let content = htmlContent
+  if (!content.includes('tailwindcss')) {
+    const twCdn = `
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+`
+    if (/<head[^>]*>/i.test(content)) {
+      content = content.replace(/(<head[^>]*>)/i, '$1' + twCdn)
+    }
+  }
+
+  if (/<head[^>]*>/i.test(content)) {
+    content = content.replace(/(<head[^>]*>)/i, '$1<base target="_self">')
+  }
+
+  if (/<\/body>/i.test(content)) {
+    return content.replace(/<\/body>/i, guardScript + '</body>')
+  }
+  return content + guardScript
+}, [htmlContent, isComponent, backdropTheme])
 
   // Sort annotations chronologically for consistent numbering #1, #2, ...
   const sortedAnnotations = useMemo(() => {
@@ -470,6 +601,49 @@ export default function PreviewCanvas({
           </button>
         </div>
 
+        {/* Backdrop Theme Switcher (Dark / Light / Checker) */}
+        <div className="flex items-center gap-0.5 bg-neutral-800/80 p-1 rounded-xl border border-neutral-700/60">
+          <button
+            type="button"
+            onClick={() => setBackdropTheme('dark')}
+            className={`flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium transition-all ${
+              backdropTheme === 'dark'
+                ? 'bg-neutral-700 text-white shadow-xs'
+                : 'text-neutral-400 hover:text-white'
+            }`}
+            title="Kanvas Gelap (Mode Gelap)"
+          >
+            <Moon className="w-3.5 h-3.5" />
+            <span className="hidden lg:inline text-[11px]">Gelap</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setBackdropTheme('light')}
+            className={`flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium transition-all ${
+              backdropTheme === 'light'
+                ? 'bg-neutral-700 text-white shadow-xs'
+                : 'text-neutral-400 hover:text-white'
+            }`}
+            title="Kanvas Terang (Mode Terang)"
+          >
+            <Sun className="w-3.5 h-3.5" />
+            <span className="hidden lg:inline text-[11px]">Terang</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setBackdropTheme('checker')}
+            className={`flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium transition-all ${
+              backdropTheme === 'checker'
+                ? 'bg-neutral-700 text-white shadow-xs'
+                : 'text-neutral-400 hover:text-white'
+            }`}
+            title="Papan Catur Transparan"
+          >
+            <Grid className="w-3.5 h-3.5" />
+            <span className="hidden lg:inline text-[11px]">Catur</span>
+          </button>
+        </div>
+
         {/* Center: Mode Switcher (Browse vs Review) */}
         {!readOnly && (
           <div className="flex items-center gap-1 bg-neutral-800/80 p-1 rounded-xl border border-neutral-700/60">
@@ -613,7 +787,13 @@ export default function PreviewCanvas({
                   ? guardedHtml
                   : `<!DOCTYPE html><html><body style="font-family:sans-serif;display:flex;align-items:center;justify-center;height:100vh;margin:0;background:#fafafa;color:#888;"><div style="text-align:center;padding:40px;"><h3>Konten HTML Belum Tersedia</h3><p>Gunakan tombol Edit atau Upload untuk memasukkan mockup HTML.</p></div></body></html>`
               }
-              className={`w-full h-full border-0 bg-white transition-opacity ${
+              className={`w-full h-full border-0 transition-opacity ${
+                backdropTheme === 'dark'
+                  ? 'bg-[#0b0f17]'
+                  : backdropTheme === 'light'
+                  ? 'bg-white'
+                  : 'bg-[#1a1f2c]'
+              } ${
                 mode === 'review' ? 'pointer-events-none' : 'pointer-events-auto'
               }`}
               title={title}

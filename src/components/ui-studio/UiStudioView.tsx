@@ -1143,6 +1143,7 @@ export default function UiStudioView({
                 availablePages={pages.map((p) => ({ id: p.id, title: p.title, path: p.path }))}
                 onNavigatePath={handleNavigatePath}
                 onCreatePageFromRoute={handleCreatePageFromRoute}
+                isComponent={subTab === 'components'}
                 className="w-full h-full"
               />
             ) : (
