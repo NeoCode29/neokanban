@@ -8,8 +8,15 @@ const PAT_TOKEN =
   process.env.NEOKANBAN_PAT ||
   (() => {
     try {
-      const config = JSON.parse(fs.readFileSync(path.resolve(process.cwd(), '.neokanban.json'), 'utf-8'))
-      return config.patToken || ''
+      const localConfig = path.resolve(process.cwd(), '.neokanban.json')
+      if (fs.existsSync(localConfig)) {
+        return JSON.parse(fs.readFileSync(localConfig, 'utf-8')).patToken || ''
+      }
+      const externalConfig = 'C:/Users/kresna/Documents/harnes/harnes-neokanban/.neokanban.json'
+      if (fs.existsSync(externalConfig)) {
+        return JSON.parse(fs.readFileSync(externalConfig, 'utf-8')).patToken || ''
+      }
+      return ''
     } catch {
       return ''
     }
