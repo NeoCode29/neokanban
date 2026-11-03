@@ -21,6 +21,12 @@ interface AddEditComponentModalProps {
   boardId: string
   component?: UiComponentData | null
   existingCategories?: string[]
+  initialValues?: {
+    name?: string
+    category?: string
+    description?: string
+    htmlContent?: string
+  } | null
   onSaved: (component: UiComponentData) => void
 }
 
@@ -58,6 +64,7 @@ export default function AddEditComponentModal({
   boardId,
   component,
   existingCategories,
+  initialValues,
   onSaved,
 }: AddEditComponentModalProps) {
   const isEditing = Boolean(component)
@@ -95,6 +102,11 @@ export default function AddEditComponentModal({
       setCategory(component.category || 'General')
       setDescription(component.description || '')
       setHtmlContent(component.htmlContent || '')
+    } else if (initialValues) {
+      setName(initialValues.name || '')
+      setCategory(initialValues.category || 'General')
+      setDescription(initialValues.description || '')
+      setHtmlContent(initialValues.htmlContent || SAMPLE_COMPONENT_HTML)
     } else {
       setName('')
       setCategory('Input')
@@ -103,8 +115,8 @@ export default function AddEditComponentModal({
     }
     setUploadedFileName(null)
     setError(null)
-    setActiveTab('code')
-  }, [isOpen, component])
+    setActiveTab(initialValues?.htmlContent ? 'preview' : 'code')
+  }, [isOpen, component, initialValues])
 
   if (!isOpen) return null
 

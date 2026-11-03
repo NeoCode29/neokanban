@@ -107,6 +107,25 @@ export default function UiStudioView({
     }
   }, [dynamicCategories, selectedCategory])
 
+  // Living Context Bridge states
+  const [contextDocs, setContextDocs] = useState<any[]>([])
+  const [dismissedBridgeBanner, setDismissedBridgeBanner] = useState(false)
+  const [initialComponentValues, setInitialComponentValues] = useState<{
+    name?: string
+    category?: string
+    description?: string
+    htmlContent?: string
+  } | null>(null)
+
+  // Memoized unimported HTML documents from Living Context
+  const unimportedHtmlDocs = useMemo(() => {
+    return contextDocs.filter((d) => {
+      if (!d.fileName?.toLowerCase().endsWith('.html')) return false
+      const baseName = d.fileName.replace(/\.html$/i, '')
+      return !components.some((c) => c.name.toLowerCase() === baseName.toLowerCase())
+    })
+  }, [contextDocs, components])
+
   // Canvas & Annotation interactions
   const [canvasMode, setCanvasMode] = useState<CanvasInteractionMode>('browse')
   const [selectedAnnotationId, setSelectedAnnotationId] = useState<string | null>(null)
@@ -130,9 +149,10 @@ export default function UiStudioView({
   const fetchAllData = useCallback(async () => {
     setLoading(true)
     try {
-      const [pagesRes, compsRes] = await Promise.all([
+      const [pagesRes, compsRes, ctxRes] = await Promise.all([
         fetch(`/api/boards/${boardId}/ui-pages`),
         fetch(`/api/boards/${boardId}/ui-components`),
+        fetch(`/api/boards/${boardId}/context`),
       ])
 
       let loadedPages: UiPageData[] = []
@@ -148,6 +168,11 @@ export default function UiStudioView({
         const compsData = await compsRes.json()
         loadedComps = compsData.components || []
         setComponents(loadedComps)
+      }
+
+      if (ctxRes.ok) {
+        const ctxData = await ctxRes.json()
+        setContextDocs(ctxData.documents || [])
       }
 
       // Default selection if available
@@ -365,6 +390,7 @@ export default function UiStudioView({
   // --- Handlers for Component CRUD ---
   const handleOpenAddComponent = () => {
     setEditingComponent(null)
+    setInitialComponentValues(null)
     setShowComponentModal(true)
   }
 
@@ -425,6 +451,7 @@ export default function UiStudioView({
     setSelectedComponentId(savedComp.id)
     setShowComponentModal(false)
     setEditingComponent(null)
+    setInitialComponentValues(null)
   }
 
   // --- Handlers for Annotation Feed ---
@@ -694,6 +721,47 @@ export default function UiStudioView({
           </button>
         </div>
       </div>
+
+      {/* Living Context Bridge Banner */}
+      {subTab === 'components' && unimportedHtmlDocs.length > 0 && !dismissedBridgeBanner && (
+        <div className="rounded-xl border border-amber-200/80 bg-amber-50/60 p-3.5 text-sm flex items-center justify-between gap-3 shadow-xs">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <Code2 className="w-4 h-4 text-amber-700 shrink-0" />
+            <span className="text-amber-900 font-medium truncate">
+              Ditemukan {unimportedHtmlDocs.length} berkas HTML di Living Context (misal:{' '}
+              <code className="bg-amber-100/80 text-amber-900 px-1.5 py-0.5 rounded font-mono font-semibold">
+                {unimportedHtmlDocs[0].fileName}
+              </code>
+              ).
+            </span>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              onClick={() => {
+                const doc = unimportedHtmlDocs[0]
+                setEditingComponent(null)
+                setInitialComponentValues({
+                  name: doc.fileName.replace(/\.html$/i, ''),
+                  category: 'General',
+                  description: `Diimpor dari Living Context (${doc.fileName})`,
+                  htmlContent: doc.content || '',
+                })
+                setShowComponentModal(true)
+              }}
+              className="px-2.5 py-1 text-xs font-semibold bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition shadow-2xs"
+            >
+              + Import ke Catalog
+            </button>
+            <button
+              onClick={() => setDismissedBridgeBanner(true)}
+              className="p-1 text-amber-600 hover:text-amber-800 transition rounded"
+              title="Tutup banner"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* 2. Main Studio Workspace Container (with Zen Mode support) */}
       <div
@@ -1242,10 +1310,12 @@ export default function UiStudioView({
           onClose={() => {
             setShowComponentModal(false)
             setEditingComponent(null)
+            setInitialComponentValues(null)
           }}
           boardId={boardId}
           component={editingComponent}
           existingCategories={dynamicCategories.filter((c) => c !== 'All')}
+          initialValues={initialComponentValues}
           onSaved={handleComponentSaved}
         />
       )}
