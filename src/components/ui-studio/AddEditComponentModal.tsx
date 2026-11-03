@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect, useRef, useMemo } from 'react'
 import {
   X,
   Component as ComponentIcon,
@@ -20,10 +20,11 @@ interface AddEditComponentModalProps {
   onClose: () => void
   boardId: string
   component?: UiComponentData | null
+  existingCategories?: string[]
   onSaved: (component: UiComponentData) => void
 }
 
-const CATEGORY_PRESETS = [
+const DEFAULT_CATEGORY_PRESETS = [
   'Input',
   'Navigation',
   'Feedback',
@@ -56,6 +57,7 @@ export default function AddEditComponentModal({
   onClose,
   boardId,
   component,
+  existingCategories,
   onSaved,
 }: AddEditComponentModalProps) {
   const isEditing = Boolean(component)
@@ -64,6 +66,17 @@ export default function AddEditComponentModal({
   const [category, setCategory] = useState('Input')
   const [description, setDescription] = useState('')
   const [htmlContent, setHtmlContent] = useState('')
+
+  const categorySuggestions = useMemo(() => {
+    const set = new Set<string>()
+    if (existingCategories && existingCategories.length > 0) {
+      existingCategories.forEach((c) => {
+        if (c && c.trim()) set.add(c.trim())
+      })
+    }
+    DEFAULT_CATEGORY_PRESETS.forEach((c) => set.add(c))
+    return Array.from(set)
+  }, [existingCategories])
 
   // HTML tabs: 'code' | 'upload' | 'preview'
   const [activeTab, setActiveTab] = useState<'code' | 'upload' | 'preview'>('code')
@@ -227,20 +240,26 @@ export default function AddEditComponentModal({
               </label>
               <input
                 type="text"
+                list="component-category-suggestions"
                 placeholder="Pilih preset di bawah atau ketik..."
                 value={category}
                 onChange={(e) => setCategory(e.target.value)}
                 className="w-full text-xs px-3 py-2 rounded-xl border border-neutral-300 focus:outline-none focus:ring-2 focus:ring-purple-500/30 focus:border-purple-500 transition-all text-neutral-900"
               />
+              <datalist id="component-category-suggestions">
+                {categorySuggestions.map((cat) => (
+                  <option key={cat} value={cat} />
+                ))}
+              </datalist>
               {/* Preset pills */}
               <div className="flex flex-wrap gap-1 mt-1.5">
-                {CATEGORY_PRESETS.map((cat) => (
+                {categorySuggestions.map((cat) => (
                   <button
                     key={cat}
                     type="button"
                     onClick={() => setCategory(cat)}
                     className={`text-[10px] px-2 py-0.5 rounded-md font-medium border transition-colors ${
-                      category === cat
+                      category.toLowerCase() === cat.toLowerCase()
                         ? 'bg-purple-100 text-purple-700 border-purple-300'
                         : 'bg-neutral-50 text-neutral-600 border-neutral-200 hover:bg-neutral-100'
                     }`}

@@ -48,17 +48,6 @@ interface UiStudioViewProps {
   isOwner?: boolean
 }
 
-const CATEGORY_PRESETS = [
-  'All',
-  'Input',
-  'Navigation',
-  'Feedback',
-  'Card',
-  'Data Display',
-  'Layout',
-  'General',
-]
-
 const STATUS_CONFIG: Record<
   string,
   { label: string; badgeClass: string; dotClass: string }
@@ -100,6 +89,23 @@ export default function UiStudioView({
   // Filters
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedCategory, setSelectedCategory] = useState('All')
+
+  // Dynamic Categories derived from components with fallback to All
+  const dynamicCategories = useMemo(() => {
+    const cats = new Set<string>()
+    components.forEach((c) => {
+      if (c.category && c.category.trim()) {
+        cats.add(c.category.trim())
+      }
+    })
+    return ['All', ...Array.from(cats).sort()]
+  }, [components])
+
+  useEffect(() => {
+    if (selectedCategory !== 'All' && !dynamicCategories.includes(selectedCategory)) {
+      setSelectedCategory('All')
+    }
+  }, [dynamicCategories, selectedCategory])
 
   // Canvas & Annotation interactions
   const [canvasMode, setCanvasMode] = useState<CanvasInteractionMode>('browse')
@@ -835,7 +841,7 @@ export default function UiStudioView({
             {/* Category filter pills for Components */}
             {subTab === 'components' && (
               <div className="flex items-center gap-1 overflow-x-auto no-scrollbar pb-1">
-                {CATEGORY_PRESETS.map((cat) => (
+                {dynamicCategories.map((cat) => (
                   <button
                     key={cat}
                     onClick={() => setSelectedCategory(cat)}
@@ -1239,6 +1245,7 @@ export default function UiStudioView({
           }}
           boardId={boardId}
           component={editingComponent}
+          existingCategories={dynamicCategories.filter((c) => c !== 'All')}
           onSaved={handleComponentSaved}
         />
       )}
