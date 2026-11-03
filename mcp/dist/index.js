@@ -1049,6 +1049,131 @@ server.tool('upgrade_harness', 'Safely updates harness engine, rules, and skills
         ],
     };
 });
+// ============================================================================
+// UI Studio Tools: Components & Pages
+// ============================================================================
+server.tool('list_ui_components', 'Lists all UI Studio components for a board with category filter and annotation summaries.', {
+    boardId: zod_1.z.string().describe('Target board ID'),
+    category: zod_1.z.string().optional().describe('Optional category filter (e.g. Navigation, Card)'),
+    token: zod_1.z.string().optional().describe('Personal Access Token override'),
+}, async ({ boardId, category, token }) => {
+    const query = category && category !== 'All' ? `?category=${encodeURIComponent(category)}` : '';
+    const data = await apiRequest(`/api/boards/${boardId}/ui-components${query}`, { token });
+    return {
+        content: [{ type: 'text', text: JSON.stringify(data.components, null, 2) }],
+    };
+});
+server.tool('create_ui_component', 'Creates a new reusable UI Studio component for a board.', {
+    boardId: zod_1.z.string().describe('Target board ID'),
+    name: zod_1.z.string().describe('Component name (e.g. HeroBanner, Navbar)'),
+    category: zod_1.z.string().default('General').describe('Category preset or custom group'),
+    description: zod_1.z.string().optional().describe('Description or specifications'),
+    htmlContent: zod_1.z.string().describe('Raw HTML/CSS/JS markup of the component'),
+    order: zod_1.z.number().optional().describe('Display sorting order'),
+    token: zod_1.z.string().optional().describe('Personal Access Token override'),
+}, async ({ boardId, name, category, description, htmlContent, order, token }) => {
+    const data = await apiRequest(`/api/boards/${boardId}/ui-components`, {
+        method: 'POST',
+        token,
+        body: { name, category, description, htmlContent, order },
+    });
+    return {
+        content: [{ type: 'text', text: JSON.stringify(data.component, null, 2) }],
+    };
+});
+server.tool('update_ui_component', 'Updates an existing UI Studio component (markup, name, category, or order).', {
+    boardId: zod_1.z.string().describe('Target board ID'),
+    componentId: zod_1.z.string().describe('Target component ID'),
+    name: zod_1.z.string().optional().describe('Updated name'),
+    category: zod_1.z.string().optional().describe('Updated category'),
+    description: zod_1.z.string().optional().describe('Updated description'),
+    htmlContent: zod_1.z.string().optional().describe('Updated HTML/CSS/JS markup'),
+    order: zod_1.z.number().optional().describe('Updated display order'),
+    token: zod_1.z.string().optional().describe('Personal Access Token override'),
+}, async ({ boardId, componentId, name, category, description, htmlContent, order, token }) => {
+    const data = await apiRequest(`/api/boards/${boardId}/ui-components/${componentId}`, {
+        method: 'PUT',
+        token,
+        body: { name, category, description, htmlContent, order },
+    });
+    return {
+        content: [{ type: 'text', text: JSON.stringify(data.component, null, 2) }],
+    };
+});
+server.tool('delete_ui_component', 'Deletes a UI Studio component from a board.', {
+    boardId: zod_1.z.string().describe('Target board ID'),
+    componentId: zod_1.z.string().describe('Target component ID to delete'),
+    token: zod_1.z.string().optional().describe('Personal Access Token override'),
+}, async ({ boardId, componentId, token }) => {
+    const data = await apiRequest(`/api/boards/${boardId}/ui-components/${componentId}`, {
+        method: 'DELETE',
+        token,
+    });
+    return {
+        content: [{ type: 'text', text: JSON.stringify(data, null, 2) }],
+    };
+});
+server.tool('list_ui_pages', 'Lists all prototype site map pages for a board.', {
+    boardId: zod_1.z.string().describe('Target board ID'),
+    token: zod_1.z.string().optional().describe('Personal Access Token override'),
+}, async ({ boardId, token }) => {
+    const data = await apiRequest(`/api/boards/${boardId}/ui-pages`, { token });
+    return {
+        content: [{ type: 'text', text: JSON.stringify(data.pages, null, 2) }],
+    };
+});
+server.tool('create_ui_page', 'Creates a new prototype site map page in UI Studio.', {
+    boardId: zod_1.z.string().describe('Target board ID'),
+    title: zod_1.z.string().describe('Page title (e.g. Checkout Page)'),
+    path: zod_1.z.string().describe('URL route path (e.g. /checkout)'),
+    htmlContent: zod_1.z.string().describe('Raw HTML/CSS/JS markup of the full page'),
+    status: zod_1.z.enum(['DRAFT', 'IN_PROGRESS', 'READY']).default('DRAFT').describe('Development status'),
+    description: zod_1.z.string().optional().describe('Page requirements or notes'),
+    order: zod_1.z.number().optional().describe('Display order'),
+    token: zod_1.z.string().optional().describe('Personal Access Token override'),
+}, async ({ boardId, title, path, htmlContent, status, description, order, token }) => {
+    const data = await apiRequest(`/api/boards/${boardId}/ui-pages`, {
+        method: 'POST',
+        token,
+        body: { title, path, htmlContent, status, description, order },
+    });
+    return {
+        content: [{ type: 'text', text: JSON.stringify(data.page, null, 2) }],
+    };
+});
+server.tool('update_ui_page', 'Updates an existing UI Studio prototype page.', {
+    boardId: zod_1.z.string().describe('Target board ID'),
+    pageId: zod_1.z.string().describe('Target page ID to update'),
+    title: zod_1.z.string().optional().describe('Updated page title'),
+    path: zod_1.z.string().optional().describe('Updated route path'),
+    htmlContent: zod_1.z.string().optional().describe('Updated HTML markup'),
+    status: zod_1.z.enum(['DRAFT', 'IN_PROGRESS', 'READY']).optional().describe('Updated development status'),
+    description: zod_1.z.string().optional().describe('Updated description'),
+    order: zod_1.z.number().optional().describe('Updated display order'),
+    token: zod_1.z.string().optional().describe('Personal Access Token override'),
+}, async ({ boardId, pageId, title, path, htmlContent, status, description, order, token }) => {
+    const data = await apiRequest(`/api/boards/${boardId}/ui-pages/${pageId}`, {
+        method: 'PUT',
+        token,
+        body: { title, path, htmlContent, status, description, order },
+    });
+    return {
+        content: [{ type: 'text', text: JSON.stringify(data.page, null, 2) }],
+    };
+});
+server.tool('delete_ui_page', 'Deletes a prototype page from a board in UI Studio.', {
+    boardId: zod_1.z.string().describe('Target board ID'),
+    pageId: zod_1.z.string().describe('Target page ID to delete'),
+    token: zod_1.z.string().optional().describe('Personal Access Token override'),
+}, async ({ boardId, pageId, token }) => {
+    const data = await apiRequest(`/api/boards/${boardId}/ui-pages/${pageId}`, {
+        method: 'DELETE',
+        token,
+    });
+    return {
+        content: [{ type: 'text', text: JSON.stringify(data, null, 2) }],
+    };
+});
 async function run() {
     const transport = new stdio_js_1.StdioServerTransport();
     await server.connect(transport);
