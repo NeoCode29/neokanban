@@ -1,50 +1,19 @@
-### Task 4: UI/UX Studio View & Board Tab Integration
+# Task 4 Brief: End-to-End Build & Production Verification
 
-**Files:**
-- Create: `neokanban/src/components/ui-studio/UiStudioView.tsx`
-- Modify: `neokanban/src/app/(dashboard)/boards/[id]/page.tsx`
-- Test: `neokanban/scripts/test-ui-studio-e2e.ts`
+**Role:** QA Tester  
+**Workspace:** `c:\Users\kresna\Documents\Workspace\neokanban`  
+**Plan:** `docs/superpowers/plans/2026-11-03-ui-studio-mcp-and-bridge.md`
 
-**Specifications & Requirements:**
-1. **`UiStudioView.tsx`**:
-   - Menerima props `{ boardId: string, boardTitle: string, isOwner?: boolean }`.
-   - Mengelola state sub-tab: `'pages'` (Peta Halaman / Site Map) vs `'components'` (Katalog Komponen).
-   - Fetching data:
-     - Mengambil list pages via `GET /api/boards/[boardId]/ui-pages`.
-     - Mengambil list components via `GET /api/boards/[boardId]/ui-components`.
-   - Layout 3-Kolom yang responsif:
-     - **Kolom Kiri (Navigator / Site Tree):**
-       - Sub-tab switcher pill: `Peta Halaman` (dengan icon `Compass` / `Map`) & `Katalog Komponen` (dengan icon `Box` / `Component`).
-       - Search bar filter.
-       - Category filter tabs untuk komponen (`All`, `Input`, `Navigation`, `Feedback`, `Card`, dll.).
-       - List item kartu halaman/komponen:
-         - Menampilkan title / name dan path URL / category.
-         - Badge status: `DRAFT` (slate), `IN_PROGRESS` (amber), `READY` (emerald).
-         - Counter badge issue: misal `2 open issues` (rose pill).
-         - Tombol edit metadata & tombol delete (dengan konfirmasi).
-       - Tombol `+ Tambah Halaman` / `+ Tambah Komponen` yang membuka modal.
-     - **Kolom Tengah (Stage Preview):**
-       - Menampilkan `PreviewCanvas` untuk halaman / komponen yang sedang dipilih.
-       - Header ringkas dengan judul item, path/category, dan status kesiapan.
-       - Tombol toggle mode `Browse Mode` vs `Review Mode`.
-       - Handler `onAddAnnotation`: memanggil `POST /api/ui-annotations` lalu refresh data anotasi.
-     - **Kolom Kanan (Feedback & Catatan Feed):**
-       - Menampilkan `AnnotationFeed` dengan live connection ke state anotasi item yang aktif.
-       - Handler `onToggleStatus`: memanggil `PUT /api/ui-annotations/[id]`.
-       - Handler `onConvertToTask`: memanggil `POST /api/ui-annotations/[id]/convert-task`.
-       - Handler `onDeleteAnnotation`: memanggil `DELETE /api/ui-annotations/[id]`.
-   - Empty state yang ramah pengguna jika belum ada halaman atau komponen yang dibuat.
+## Objective
+Execute full end-to-end build and regression tests for all newly implemented features (MCP UI Studio tools, dynamic categories, living context bridge), ensure clean git tree, and push commits to `origin/feat/ui-ux-studio`.
 
-2. **Integrasi ke `boards/[id]/page.tsx`**:
-   - Tambahkan state `'ui-studio'` pada `activeTab` type:
-     `'board' | 'context' | 'timeline' | 'skills' | 'ui-studio'`
-   - Tambahkan tombol tab ke-5 di navigation bar header board:
-     - Label: **`UI/UX Studio`**
-     - Ikon: `Palette` dari `lucide-react`
-   - Render `<UiStudioView boardId={board.id} boardTitle={board.title} isOwner={board.isOwner} />` saat `activeTab === 'ui-studio'`.
-
-3. **Verifikasi**:
-   - `npx tsc --noEmit` lolos tanpa error.
-   - `npx tsx scripts/test-ui-studio-e2e.ts` lolos.
-   - Commit & push: `git add src/app/(dashboard)/boards/[id]/page.tsx src/components/ui-studio/UiStudioView.tsx` dan `git commit -m "feat(board): integrate UI/UX Studio tab into board detail view"`.
-
+## Instructions
+1. Run `npm run mcp:build` and verify compilation.
+2. Run `npm run build` and verify clean Next.js build.
+3. Run the verification test suite:
+   - `npx tsx scripts/test-mcp-ui-studio-tools.ts`
+   - `npx tsx scripts/test-dynamic-categories.ts`
+   - `npx tsx scripts/test-context-bridge-detection.ts`
+4. Verify `git status` in `c:\Users\kresna\Documents\Workspace\neokanban`.
+5. Push to GitHub: `git push origin feat/ui-ux-studio`.
+6. Write test results to `docs/superpowers/sdd/task-4-report.md`.

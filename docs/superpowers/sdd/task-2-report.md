@@ -1,49 +1,56 @@
-# Task 2 Report: Backend REST APIs for Pages, Components, Annotations & Convert-to-Task
+# Task 2 Implementation Report: Dynamic Category Filter in UI Studio Web
 
-## Status: DONE
-**Commit Hash:** `4329439879064acddcd3b8033aac63c3c084899d` (`4329439`)
-**Branch:** `feat/ui-ux-studio`
+**Role:** Frontend Specialist  
+**Status:** Complete  
+**Commit:** `8c56366` (`feat(ui-studio): add dynamic category filter and category suggestions`)  
 
-## TDD Cycle Summary
+---
 
-### 1. RED Phase
-- Created comprehensive E2E test script [test-ui-studio-e2e.ts](file:///c:/Users/kresna/Documents/Workspace/neokanban/scripts/test-ui-studio-e2e.ts) testing:
-  - Prisma CRUD for `UiPage`, `UiComponent`, and `UiAnnotation` (PIN & BOX).
-  - Dynamic importing and testing of all 7 App Router API route handlers.
-- Executed: `npx tsx scripts/test-ui-studio-e2e.ts`.
-- Result: Expected failure with `ERR_MODULE_NOT_FOUND` on missing route handler `src/app/api/boards/[id]/ui-pages/route`.
+## 1. Summary of Work
+Transformed static category presets in UI Studio Web into dynamic, self-maintaining category sets derived directly from actual board component data with state safety guarantees:
 
-### 2. GREEN Phase
-- Implemented all 7 Next.js App Router API route handlers:
-  1. [`src/app/api/boards/[id]/ui-pages/route.ts`](file:///c:/Users/kresna/Documents/Workspace/neokanban/src/app/api/boards/[id]/ui-pages/route.ts)
-     - `GET`: Lists board UI pages ordered by `order asc` with annotation metadata.
-     - `POST`: Validates title, auto-calculates order, sanitizes null bytes (`\0`), creates `UiPage`.
-  2. [`src/app/api/boards/[id]/ui-pages/[pageId]/route.ts`](file:///c:/Users/kresna/Documents/Workspace/neokanban/src/app/api/boards/[id]/ui-pages/[pageId]/route.ts)
-     - `GET`: Returns single page with annotations, author info, and card links.
-     - `PUT`: Updates title, path, description, status, htmlContent, order with null-byte sanitization.
-     - `DELETE`: Deletes page with cascade deletion of related annotations.
-  3. [`src/app/api/boards/[id]/ui-components/route.ts`](file:///c:/Users/kresna/Documents/Workspace/neokanban/src/app/api/boards/[id]/ui-components/route.ts)
-     - `GET`: Lists UI components, supports optional `?category=...` filter.
-     - `POST`: Validates name, auto-calculates order, sanitizes null bytes, creates `UiComponent`.
-  4. [`src/app/api/boards/[id]/ui-components/[componentId]/route.ts`](file:///c:/Users/kresna/Documents/Workspace/neokanban/src/app/api/boards/[id]/ui-components/[componentId]/route.ts)
-     - `GET`: Returns single component with annotations, author details, and card links.
-     - `PUT`: Updates name, category, description, htmlContent, order.
-     - `DELETE`: Deletes component.
-  5. [`src/app/api/ui-annotations/route.ts`](file:///c:/Users/kresna/Documents/Workspace/neokanban/src/app/api/ui-annotations/route.ts)
-     - `POST`: Validates pageId/componentId, coordinate numbers (`posX`, `posY`, `width`, `height`), checks board access, creates PIN or BOX annotation with author attribution.
-  6. [`src/app/api/ui-annotations/[id]/route.ts`](file:///c:/Users/kresna/Documents/Workspace/neokanban/src/app/api/ui-annotations/[id]/route.ts)
-     - `GET`: Returns annotation details with parent board access check.
-     - `PUT`: Updates status (`OPEN` / `RESOLVED`) and comment.
-     - `DELETE`: Removes annotation safely.
-  7. [`src/app/api/ui-annotations/[id]/convert-task/route.ts`](file:///c:/Users/kresna/Documents/Workspace/neokanban/src/app/api/ui-annotations/[id]/convert-task/route.ts)
-     - `POST`: Converts visual review annotation into a Kanban `Card`.
-     - Finds target column (provided `columnId`, column containing 'To Do', or board's first column).
-     - Formats title `[UI Feedback] <Page/Component title>: <Summary>` and structured markdown description (source, position, reporter, feedback details).
-     - Links `cardId` back to the `UiAnnotation` record.
-- Executed `npx tsx scripts/test-ui-studio-e2e.ts`: **PASS** (All 14 route handler validations and Prisma checks passed).
-- Executed `npx tsc --noEmit`: **PASS** (0 TypeScript errors).
+1. **Verification Test Script (`scripts/test-dynamic-categories.ts`)**:
+   - Implemented unit verification for extraction logic with deduplication, trimming, and alphabetic sorting prefixed by `'All'`.
 
-### 3. REFACTOR & Commit Phase
-- Staged all 7 API routes and the E2E test script.
-- Committed with message: `feat(api): implement UI/UX studio routes for pages, components, and annotations`.
-- Verified clean repository state.
+2. **Dynamic Categories in `UiStudioView.tsx`**:
+   - Replaced static `CATEGORY_PRESETS` array with memoized `dynamicCategories` derived from `components`.
+   - Added automatic fallback safety via `useEffect`: if `selectedCategory !== 'All'` and no longer exists in `dynamicCategories` (e.g. after component deletion/rename), reset selection to `'All'`.
+   - Updated category filter buttons in component tab to map dynamically over `dynamicCategories`.
+   - Passed existing categories via `existingCategories={dynamicCategories.filter((c) => c !== 'All')}` to `AddEditComponentModal`.
+
+3. **Category Suggestions in `AddEditComponentModal.tsx`**:
+   - Extended `AddEditComponentModalProps` with optional `existingCategories?: string[]`.
+   - Derived unified `categorySuggestions` combining board-existing categories with standard UI presets.
+   - Connected an HTML `<datalist id="component-category-suggestions">` to the category text input for browser autocomplete.
+   - Rendered quick-select pills below the category input matching suggestion options.
+
+---
+
+## 2. Verification Evidence
+
+### Dynamic Categories Logic Verification
+- **Command:** `npx tsx scripts/test-dynamic-categories.ts`
+- **Output:**
+  ```text
+  Result categories: [ 'All', 'Auth', 'Card', 'Navigation' ]
+  Category extraction logic PASS!
+  ```
+
+### Full Production Build Verification
+- **Command:** `npm run build`
+- **Result:** Code `0` (Success)
+- **Output:**
+  ```text
+  ▲ Next.js 16.3.4 (Turbopack)
+  ✓ Compiled successfully in 3.1s
+    Running TypeScript ...
+    Finished TypeScript in 4.2s ...
+  ✓ Generating static pages using 15 workers (21/21) in 413ms
+  ```
+
+---
+
+## 3. Files Modified & Committed
+- `neokanban/scripts/test-dynamic-categories.ts` (Dynamic category extraction test)
+- `neokanban/src/components/ui-studio/UiStudioView.tsx` (Dynamic category memo, fallback useEffect, filter rendering, modal props)
+- `neokanban/src/components/ui-studio/AddEditComponentModal.tsx` (Accepted `existingCategories`, datalist autocomplete, suggestion pills)

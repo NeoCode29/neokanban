@@ -172,3 +172,4 @@ Model Context Protocol daemon berjalan di `mcp/src/index.ts` dan berkomunikasi k
 2. **Kompilasi TypeScript & Build:**
    - Menjalankan `npm run mcp:build`.
    - Menjalankan `npm run build` (`next build`).
+

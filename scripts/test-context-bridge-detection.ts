@@ -30,3 +30,4 @@ if (unimported.length !== 1 || unimported[0].fileName !== 'login-screen.html') {
   throw new Error('Detection logic failed!')
 }
 console.log('Detection logic PASS!')
+
