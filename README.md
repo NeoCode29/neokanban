@@ -25,38 +25,31 @@ NeoKanban is an open-source, modern Kanban task management platform built with *
 - **Single Source of Truth:** Eliminates context drift so that team members and AI assistants never write misaligned code.
 - **Copy as System Prompt:** Instantly export the full context into prompt preambles for external LLMs.
 
-### 3. 🤖 Model Context Protocol (MCP) Server
+### 3. 🎨 UI/UX Studio & Living Component Catalog
+- **Interactive Prototyping:** Sandboxed iframe renderer with device emulation (Desktop, Tablet, Mobile) and Zen Mode.
+- **Visual Review Overlay:** Click-to-pin marker and drag-to-highlight bounding box with 1-click conversion to Kanban task cards (`#ui-feedback`).
+- **Living Context Bridge:** Direct 1-click import banner for `.html` prototype documents detected in the Living Context hub.
+- **Dynamic Category Filter:** Real-time extraction of design component categories with suggestion datalists.
+
+### 4. 🤖 Model Context Protocol (MCP) Server
 - **Native Stdio Protocol:** Runs locally via `@modelcontextprotocol/sdk` (`npm run mcp`), compatible with:
   - **Claude Desktop**
   - **Cursor AI**
   - **Antigravity / VS Code**
 - **Personal Access Tokens (PAT):** Secure cryptographic API keys generated in user settings (`/settings`).
-- **17 Specialized AI Tools:**
-  - `list_boards`: List all accessible boards and task statistics.
-  - `list_board_members`: List board owner and all team collaborators.
-  - `list_board_context_files`: List all custom living context documents.
-  - `get_board_context`: Read living project guidelines and standards.
-  - `update_board_context`: Enhance or update project documentation.
-  - `get_board_cards`: Query columns and task summaries (with column filters).
-  - `get_card_details`: Full task specifications, checklists, and activity log.
-  - `create_card`: Break down user requests into standardized Kanban cards.
-  - `update_card`: Move tasks across columns or modify details.
-  - `assign_card_member`: Assign collaborator to a card.
-  - `unassign_card_member`: Remove collaborator from a card.
-  - `add_card_comment`: Post execution updates automatically tagged with `isAiGenerated: true`.
-  - `manage_checklist`: Add, toggle, or delete acceptance criteria items.
-  - `create_column`: Create a new column on a board.
-  - `update_column`: Rename or change badge color of a column.
-  - `delete_column`: Delete a column with optional card migration.
-  - `get_review_queue`: Query all tasks across boards awaiting human review and approval.
+- **32 Specialized AI Tools:**
+  - **Kanban & Task Management:** `list_boards`, `list_board_members`, `get_board_cards`, `get_card_details`, `create_card`, `update_card`, `assign_card_member`, `unassign_card_member`, `add_card_comment`, `manage_checklist`, `create_column`, `update_column`, `delete_column`, `get_review_queue`, `update_member_role`.
+  - **Living Context & AI Skills:** `list_board_context_files`, `get_board_context`, `update_board_context`, `list_skills`, `get_board_skills`, `read_skill_file`, `install_skill_to_local`.
+  - **Harness & Orchestration:** `setup_project_harness`, `upgrade_harness`.
+  - **UI/UX Studio Suite:** `list_ui_components`, `create_ui_component`, `update_ui_component`, `delete_ui_component`, `list_ui_pages`, `create_ui_page`, `update_ui_page`, `delete_ui_page`.
 
 ---
 
 ## 🛠 Tech Stack
 
-- **Framework:** Next.js 15 (App Router, Server Components & Route Handlers)
+- **Framework:** Next.js 16 (App Router, Turbopack, React 19, TypeScript)
 - **Database & ORM:** PostgreSQL 16 (Docker) with Prisma ORM 6.4
-- **Styling:** Tailwind CSS, Lucide React Icons
+- **Styling:** Tailwind CSS v4, Lucide React Icons
 - **Drag & Drop:** `@dnd-kit/core`, `@dnd-kit/sortable`, `@dnd-kit/utilities`
 - **Authentication:** Credentials Auth (Bcrypt + JOSE JWT Session Cookie) + PAT for AI
 - **AI Protocol:** `@modelcontextprotocol/sdk` (StdioServerTransport)
