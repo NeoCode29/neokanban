@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "mcp:build": "tsc -p mcp/tsconfig.json"
+    "mcp:build": "tsc -p mcp/tsconfig.json",
+    "mcp:bundle": "esbuild mcp/src/index.ts --bundle --platform=node --target=node18 --outfile=mcp/dist/server.js"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
